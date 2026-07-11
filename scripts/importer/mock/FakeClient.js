@@ -21,8 +21,16 @@ function getClient() {
     return client;
 }
 
-function getLogger() {
-    return client.logger;
+function getConfig() {
+    return client?.config ?? null;
 }
 
-export { LevertClient, getClient, getLogger };
+function getEmoji(name) {
+    return getConfig()?.emoji?.[name] ?? "";
+}
+
+function getLogger() {
+    return client?.logger ?? null;
+}
+
+export { LevertClient, getClient, getConfig, getEmoji, getLogger };

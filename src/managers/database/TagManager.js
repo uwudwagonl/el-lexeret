@@ -743,6 +743,37 @@ class TagManager extends DBManager {
         return { body, isScript };
     }
 
+    emulateTag(options) {
+        options = TypeTester.isObject(options) ? options : {};
+
+        const owner = options.owner ?? getClient().owner;
+
+        if (!Util.nonemptyString(owner)) {
+            throw new TagError("Tag owner is required for emulation");
+        }
+
+        let type = options.type;
+
+        if (type === "script") {
+            type = TagTypes.defaults.scriptType;
+        }
+
+        const meta = ObjectUtil.removeUndefinedValues({
+                type,
+                language: options.language
+            }),
+            hasMeta = !Util.empty(Object.keys(meta));
+
+        return new Tag({
+            name: options.name ?? "dummy-tag",
+            body: options.body,
+            owner,
+            args: options.args,
+            aliasName: options.aliasName ?? options.alias,
+            meta: hasMeta ? meta : undefined
+        });
+    }
+
     async _addPrepared(tag, tx) {
         tag = Tag.from(tag);
 

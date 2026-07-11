@@ -1,3 +1,6 @@
+import fs from "node:fs/promises";
+import path from "node:path";
+
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 
 import {
@@ -28,5 +31,18 @@ describe("cli eval command", () => {
 
         await expect(executeCliCommand(command, "")).resolves.toBe("Can't eval an empty expression.");
         await expect(executeCliCommand(command, "1 + 1")).resolves.toBe(2);
+    });
+
+    test("loads scripts from absolute paths and errors on missing ones", async () => {
+        const command = getCliCommand(runtime, "eval"),
+            filePath = path.join(runtime.tempDir, "eval.js"),
+            missingPath = path.join(runtime.tempDir, "missing.js");
+
+        await fs.writeFile(filePath, "1 + 2");
+
+        await expect(executeCliCommand(command, filePath)).resolves.toBe(3);
+        await expect(executeCliCommand(command, missingPath)).resolves.toContain(
+            "Error: The provided script path doesn't point to an existing file"
+        );
     });
 });

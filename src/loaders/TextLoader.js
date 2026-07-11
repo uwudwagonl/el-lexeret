@@ -8,6 +8,7 @@ import { LoadStatus } from "./LoadStatus.js";
 import { WriteModes } from "./WriteModes.js";
 
 import Util from "../util/Util.js";
+import FileUtil from "../util/misc/FileUtil.js";
 import ObjectUtil from "../util/ObjectUtil.js";
 
 class TextLoader extends FileLoader {
@@ -124,7 +125,7 @@ class TextLoader extends FileLoader {
         }
 
         const parsed = path.parse(filePath);
-        return path.resolve(projRoot, parsed.dir, `${parsed.name}.tmp`);
+        return FileUtil.resolve(parsed.dir, `${parsed.name}.tmp`);
     }
 
     get _fsConfig() {
@@ -160,7 +161,6 @@ class TextLoader extends FileLoader {
 
     _handleAppend(data, etc) {
         const newData = this.data + data;
-
         return this.write(newData, ...etc);
     }
 

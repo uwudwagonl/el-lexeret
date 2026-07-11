@@ -19,6 +19,9 @@
         "cliCommandsPath": {
             "type": "string"
         },
+        "websocketCommandsPath": {
+            "type": "string"
+        },
         "dbPath": {
             "type": "string"
         },
@@ -33,6 +36,12 @@
         },
         "cliCmdPrefix": {
             "type": "string"
+        },
+        "enableWebsocket": {
+            "type": "boolean"
+        },
+        "websocketPort": {
+            "type": "number"
         },
         "outCharLimit": {
             "type": "number"
@@ -207,11 +216,14 @@
         "eventsPath",
         "commandsPath",
         "cliCommandsPath",
+        "websocketCommandsPath",
         "dbPath",
         "logLevel",
         "cmdPrefix",
         "enableCliCommands",
         "cliCmdPrefix",
+        "enableWebsocket",
+        "websocketPort",
         "outCharLimit",
         "outLineLimit",
         "embedCharLimit",

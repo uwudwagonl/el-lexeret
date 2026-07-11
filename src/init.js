@@ -1,7 +1,7 @@
 import createLogger from "./logger/createLogger.js";
 import getDefaultLoggerConfig from "./logger/DefaultLoggerConfig.js";
 
-import loadConfig from "./config/loadConfig.js";
+import { loadBotConfig } from "./config/loadConfig.js";
 import { LevertClient } from "./LevertClient.js";
 
 const loggerName = "init",
@@ -71,13 +71,15 @@ function setupLogger() {
 async function init() {
     const logger = setupLogger();
 
-    const configs = await loadConfig(logger);
+    const loaded = await loadBotConfig(logger);
 
-    if (configs === null) {
+    if (loaded === null) {
         process.exit(1);
     }
 
-    const client = new LevertClient(configs);
+    const { configs, auth } = loaded,
+        client = new LevertClient(auth, configs);
+
     setupShutdownHandlers(client);
 
     logger.info("Initialized client.");

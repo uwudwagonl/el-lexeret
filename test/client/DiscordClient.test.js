@@ -1,5 +1,5 @@
 import { describe, expect, test, vi } from "vitest";
-import { ActivityType, ChannelType, DiscordAPIError, RESTJSONErrorCodes } from "discord.js";
+import { ActivityType, ChannelType, DiscordAPIError, RESTJSONErrorCodes, Collection } from "discord.js";
 
 import DiscordClient from "../../src/client/DiscordClient.js";
 
@@ -17,18 +17,23 @@ function createClient() {
         log: vi.fn()
     };
     client.client = {
-        options: {},
+        options: {
+            makeCache: () => new Collection()
+        },
         destroy: vi.fn(),
         login: vi.fn(),
         guilds: {
             fetch: vi.fn(),
-            cache: new Map()
+            cache: new Map(),
+            resolve: vi.fn().mockReturnValue(null)
         },
         channels: {
-            fetch: vi.fn()
+            fetch: vi.fn(),
+            resolve: vi.fn().mockReturnValue(null)
         },
         users: {
-            fetch: vi.fn()
+            fetch: vi.fn(),
+            resolve: vi.fn().mockReturnValue(null)
         },
         user: {
             id: "bot-id",
@@ -647,5 +652,236 @@ describe("DiscordClient", () => {
         client._unloadEvents();
 
         expect(client._eventLoader).toBeUndefined();
+    });
+
+    test("emulates guild, channel, member, and message without cache hits", async () => {
+        const client = createClient();
+        client.client.options = {
+            makeCache: () => new Collection()
+        };
+
+        const usersSpy = vi.fn().mockImplementation(data => data);
+        client.client.users._add = usersSpy;
+
+        client.fetchGuild = vi.fn().mockResolvedValue(null);
+        client.fetchChannel = vi.fn().mockResolvedValue(null);
+        client.fetchMember = vi.fn().mockResolvedValue(null);
+
+        const userObj = await client.emulateUser("11111");
+        expect(userObj.id).toBe("11111");
+        expect(userObj.username).toBe("dummy-user");
+
+        client.findUserById = vi.fn().mockResolvedValue({ id: "22222", username: "real-user" });
+        const existingUser = await client.emulateUser("22222");
+        expect(existingUser.id).toBe("22222");
+        expect(existingUser.username).toBe("real-user");
+        client.findUserById = vi.fn().mockResolvedValue(null);
+
+        const guild = await client.emulateGuild("12345");
+        expect(guild.id).toBe("12345");
+        expect(guild.name).toBe("dummy-guild");
+        expect(guild.roles.everyone).toBeDefined();
+        expect(guild.roles.everyone.id).toBe("12345");
+
+        const channel = await client.emulateChannel("67890", guild);
+        expect(channel.id).toBe("67890");
+        expect(channel.name).toBe("dummy-channel");
+        expect(channel.guild).toBe(guild);
+        expect(guild.channels.cache.get("67890")).toBe(channel);
+
+        const member = await client.emulateMember("54321", "12345", guild);
+        expect(member.id).toBe("54321");
+        expect(member.user.username).toBe("dummy-user");
+        expect(member.guild).toBe(guild);
+        expect(member.roles.highest).toBeDefined();
+        expect(member.roles.highest.id).toBe("12345");
+        expect(guild.members.cache.get("54321")).toBe(member);
+
+        const realGuild = await client.emulateGuild("99999");
+        client.client.guilds.cache.set("99999", realGuild);
+
+        const realGuildChannel = await client.emulateChannel("88888", realGuild);
+        const realGuildMember = await client.emulateMember("77777", "99999", realGuild);
+
+        expect(realGuild.channels.cache.has("88888")).toBe(false);
+        expect(realGuild.members.cache.has("77777")).toBe(false);
+
+        expect(usersSpy).not.toHaveBeenCalled();
+
+        const message = await client.emulateMessage("hello content", {
+            guild: {
+                id: "12345"
+            },
+            channel: {
+                id: "67890"
+            },
+            author: {
+                id: "54321",
+                username: "dummy-user",
+                globalName: "dummy-user",
+                bot: false
+            },
+            member: {
+                nick: "member-nick",
+                roles: ["12345"]
+            },
+            message: {
+                type: 1,
+                attachments: [
+                    {
+                        id: "a1",
+                        url: "https://example.com/a.txt",
+                        contentType: "text/plain",
+                        size: 3
+                    }
+                ],
+                embeds: [
+                    {
+                        description: "embed body"
+                    }
+                ],
+                reactions: [
+                    {
+                        emoji: {
+                            name: "🔥"
+                        }
+                    }
+                ],
+                mentions: {
+                    everyone: true
+                }
+            }
+        });
+
+        expect(message.type).toBe(1);
+        expect(message.content).toBe("hello content");
+        expect(message.channel.id).toBe("67890");
+        expect(message.guild.id).toBe("12345");
+        expect(message.member.id).toBe("54321");
+        expect(message.member.nickname).toBe("member-nick");
+        expect(message.author.id).toBe("54321");
+        expect(message.attachments.first().url).toBe("https://example.com/a.txt");
+        expect(message.attachments.first().contentType).toBe("text/plain");
+        expect(message.embeds[0].data.description).toBe("embed body");
+        expect(message.reactions).toEqual([
+            {
+                emoji: {
+                    name: "🔥"
+                }
+            }
+        ]);
+        expect(message.mentions.everyone).toBe(true);
+    });
+
+    test("emulates message with the resolved guild id and owner fallback", async () => {
+        const client = createClient();
+        client.owner = "owner-id";
+        client.client.users._add = vi.fn().mockImplementation(data => data);
+
+        const guild = {
+                id: "real-guild"
+            },
+            channel = {
+                id: "real-channel"
+            },
+            member = {
+                user: {
+                    id: "owner-id",
+                    username: "owner-user",
+                    discriminator: "1234",
+                    avatar: null,
+                    bot: false,
+                    system: false,
+                    globalName: "owner-user"
+                }
+            };
+
+        client.emulateGuild = vi.fn().mockResolvedValue(guild);
+        client.emulateChannel = vi.fn().mockResolvedValue(channel);
+        client.emulateMember = vi.fn().mockResolvedValue(member);
+
+        const message = await client.emulateMessage("hello content", {
+            guild: {
+                id: "input-guild"
+            },
+            channel: {
+                id: "input-channel"
+            },
+            member: {
+                nick: "owner-nick"
+            },
+            author: {
+                username: "owner-user"
+            }
+        });
+
+        expect(client.emulateGuild).toHaveBeenCalledWith("input-guild", {
+            id: "input-guild"
+        });
+        expect(client.emulateChannel).toHaveBeenCalledWith("input-channel", guild, {
+            id: "input-channel"
+        });
+        expect(client.emulateMember).toHaveBeenCalledWith("owner-id", "real-guild", guild, {
+            user: {
+                username: "owner-user"
+            },
+            nick: "owner-nick"
+        });
+        expect(message.author).toBe(message.member.user);
+        expect(message.author.id).toBe("owner-id");
+        expect(message.channel.id).toBe("real-channel");
+        expect(message.guild.id).toBe("real-guild");
+    });
+
+    test("emulates entity overrides from option objects", async () => {
+        const client = createClient();
+        client.client.users._add = vi.fn().mockImplementation(data => data);
+        client.findUserById = vi.fn().mockResolvedValue(null);
+        client.fetchGuild = vi.fn().mockResolvedValue(null);
+        client.fetchChannel = vi.fn().mockResolvedValue(null);
+        client.fetchMember = vi.fn().mockResolvedValue(null);
+
+        const user = await client.emulateUser("11111", {
+            username: "custom-user",
+            globalName: "custom-global",
+            bot: true
+        });
+        expect(user.id).toBe("11111");
+        expect(user.username).toBe("custom-user");
+        expect(user.globalName).toBe("custom-global");
+        expect(user.bot).toBe(true);
+        expect(client.findUserById).not.toHaveBeenCalled();
+
+        const guild = await client.emulateGuild("22222", {
+            name: "custom-guild"
+        });
+        expect(guild.id).toBe("22222");
+        expect(guild.name).toBe("custom-guild");
+
+        const channel = await client.emulateChannel("33333", guild, {
+            type: ChannelType.GuildVoice,
+            name: "custom-channel",
+            lastMessageId: "last-message-id"
+        });
+        expect(channel.id).toBe("33333");
+        expect(channel.name).toBe("custom-channel");
+        expect(channel.type).toBe(ChannelType.GuildVoice);
+        expect(channel.lastMessageId).toBe("last-message-id");
+        expect(channel.guild).toBe(guild);
+
+        const member = await client.emulateMember("44444", guild.id, guild, {
+            nick: "member-nick",
+            roles: ["role-1"],
+            user: {
+                username: "member-user",
+                globalName: "member-global",
+                bot: false
+            }
+        });
+        expect(member.id).toBe("44444");
+        expect(member.nickname).toBe("member-nick");
+        expect(member.roles.cache.has("role-1")).toBe(true);
+        expect(member.user.username).toBe("member-user");
+        expect(member.user.globalName).toBe("member-global");
     });
 });

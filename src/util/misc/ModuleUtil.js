@@ -1,11 +1,11 @@
-import { pathToFileURL } from "node:url";
 import assert from "node:assert/strict";
 
+import FileUtil from "./FileUtil.js";
 import TypeTester from "../TypeTester.js";
 
 const ModuleUtil = Object.freeze({
     import: async (modulePath, cache = true) => {
-        let fileURL = pathToFileURL(modulePath);
+        let fileURL = FileUtil.toFileUrl(modulePath);
 
         if (!cache) {
             fileURL += `?update=${Date.now()}`;

@@ -1,22 +1,11 @@
-import fs from "node:fs/promises";
-import os from "node:os";
-import path from "node:path";
-
-import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 
 import Util from "../../src/util/Util.js";
 import { LengthTypes } from "../../src/util/LengthTypes.js";
 import { CountTypes } from "../../src/util/CountTypes.js";
 
-let tempDir;
-
-beforeEach(async () => {
-    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "el-levert-util-"));
-});
-
 afterEach(async () => {
     vi.restoreAllMocks();
-    await fs.rm(tempDir, { recursive: true, force: true });
 });
 
 describe("Util", () => {
@@ -36,6 +25,7 @@ describe("Util", () => {
         expect(Util.splitAt("alpha beta")).toEqual(["alpha", " beta"]);
         expect(Util.stripSpaces(" a \n b ")).toBe("ab");
         expect(Util.capitalize("  hello  ")).toBe("  Hello  ");
+        expect(Util.camelCaseToKebab("channelLastMessageId")).toBe("channel-last-message-id");
         expect(Util.camelCaseToWords("helloWorld")).toBe("hello world");
         expect(Util.wordsToCamelCase("HELLO world")).toBe("helloWorld");
         expect(Util.hasDuplicates("abba")).toBe(true);
@@ -135,15 +125,6 @@ describe("Util", () => {
         expect(Util.duration(65_000, { largestN: 1, format: true, whitelist: ["minute", "second"] })).toBe(
             "65 seconds"
         );
-
-        const dir = path.join(tempDir, "nested");
-        await fs.mkdir(dir);
-
-        expect(await Util.directoryExists(dir)).toBe(true);
-        expect(await Util.directoryExists(path.join(tempDir, "missing"))).toBe(false);
-
-        vi.spyOn(fs, "stat").mockRejectedValueOnce(Object.assign(new Error("denied"), { code: "EACCES" }));
-        await expect(Util.directoryExists("whatever")).rejects.toThrow("denied");
     });
 
     test("coordinates async helpers and timeouts", async () => {

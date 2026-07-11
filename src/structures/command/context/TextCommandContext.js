@@ -1,30 +1,60 @@
-import ParserUtil from "../../../util/commands/ParserUtil.js";
+import BaseCommandContext from "./BaseCommandContext.js";
+
+import Util from "../../../util/Util.js";
 import ObjectUtil from "../../../util/ObjectUtil.js";
 
-import BaseCommandContext from "./BaseCommandContext.js";
-import CommandParser from "../../../parsers/CommandParser.js";
+import CommandError from "../../../errors/CommandError.js";
 
 class TextCommandContext extends BaseCommandContext {
-    get parser() {
-        this._parser ??= new CommandParser(this);
-        return this._parser;
+    parseArgs() {
+        this._parsedSession ??= this.command.parser.parse(this);
+        return this._parsedSession;
     }
 
-    splitArgs(lowercase = false, options) {
-        return ParserUtil.splitArgs(this.argsText, lowercase, options);
-    }
+    arg(...args) {
+        this._parsedSession ??= this.parseArgs();
 
-    parseArgs(argDefs = this.command.arguments) {
-        return this.parser.parseArguments(argDefs);
-    }
+        let options = {},
+            names = args;
 
-    get parsedArgs() {
-        this._parsedArgs ??= this.parseArgs();
-        return this._parsedArgs;
-    }
+        if (!Util.empty(args)) {
+            const last = args[args.length - 1];
 
-    arg(name) {
-        return this.parsedArgs[name];
+            if (last && typeof last === "object" && !Array.isArray(last)) {
+                options = last;
+                names = args.slice(0, -1);
+            }
+        }
+
+        const validate = options.validate ?? false;
+
+        if (Util.empty(names)) {
+            const obj = {};
+
+            for (const [name, result] of this._parsedSession.results.entries()) {
+                obj[name] = validate ? result : result.value;
+            }
+
+            return obj;
+        }
+
+        const results = [];
+
+        for (const name of names) {
+            const result = this._parsedSession.results.get(name);
+
+            if (!result) {
+                throw new CommandError(`Unknown argument name: ${name}`);
+            }
+
+            if (validate) {
+                results.push(result);
+            } else {
+                results.push(result.value);
+            }
+        }
+
+        return Util.single(names) ? Util.first(results) : results;
     }
 
     withArgs(argsText, overrides) {
@@ -32,8 +62,7 @@ class TextCommandContext extends BaseCommandContext {
 
         return super.withArgs(argsText, {
             ...overrides,
-            _parser: undefined,
-            _parsedArgs: undefined
+            _parsedSession: undefined
         });
     }
 }

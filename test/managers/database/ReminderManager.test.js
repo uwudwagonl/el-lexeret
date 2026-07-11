@@ -58,7 +58,7 @@ describe("ReminderManager", () => {
 
         expect(manager.checkIndex(0)).toBe(0);
         expect(manager.checkMessage(null)).toBeNull();
-        expect(manager.checkMessage(123, false)).toEqual([null, "Invalid reminder message"]);
+        expect(manager.checkMessage(123, false)).toEqual(["123", null]);
         expect(manager.checkMessage("  hello  ")).toBe("hello");
 
         const first = await manager.add("u1", now + 1000, "first", true);

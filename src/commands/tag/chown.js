@@ -13,13 +13,13 @@ class TagChownCommand {
         arguments: [
             {
                 name: "tagName",
-                parser: "split",
+                kind: "positional",
                 index: 0,
                 lowercase: true
             },
             {
                 name: "ownerText",
-                parser: "split",
+                kind: "positional",
                 index: 1
             }
         ]

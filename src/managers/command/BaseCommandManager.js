@@ -98,7 +98,7 @@ class BaseCommandManager extends Manager {
         let deleted = true;
 
         for (const subcmd of command.getSubcmds()) {
-            deleted &= ArrayUtil.removeItem(this.commands, subcmd)[0];
+            deleted &= Util.first(ArrayUtil.removeItem(this.commands, subcmd));
 
             if (errorIfNotFound && !deleted) {
                 throw new CommandError(`Couldn't delete ${subcmd.getName(true)}`, subcmd.getName());

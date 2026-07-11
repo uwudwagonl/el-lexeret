@@ -12,7 +12,9 @@ class CppEvalCommand {
     }
 
     handler(ctx) {
-        return this.parentCmd.altevalBase(ctx.argsText, ctx.msg, 76);
+        return this.parentCmd.altevalBase(ctx.argsText, ctx.msg, 76, {
+            allowFilePath: this.parentCmd.canUseFilePath(ctx)
+        });
     }
 }
 

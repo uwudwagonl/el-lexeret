@@ -1,17 +1,21 @@
 import path from "node:path";
+
 import Ajv from "ajv";
 
 import TextLoader from "./TextLoader.js";
 
-import Util from "../util/Util.js";
-import ObjectUtil from "../util/ObjectUtil.js";
-
 import { LoadStatus } from "./LoadStatus.js";
 import { WriteModes } from "./WriteModes.js";
 
+import Util from "../util/Util.js";
+import FileUtil from "../util/misc/FileUtil.js";
+import ObjectUtil from "../util/ObjectUtil.js";
+
 class JsonLoader extends TextLoader {
     static ajvOptions = {
-        allowUnionTypes: true
+        useDefaults: true,
+        allowUnionTypes: true,
+        allErrors: true
     };
 
     constructor(name, filePath, logger, options) {
@@ -110,7 +114,7 @@ class JsonLoader extends TextLoader {
         }
 
         const parsed = path.parse(filePath),
-            schemaPath = path.resolve(projRoot, options.schemaDir, `${parsed.name}.schema.json`);
+            schemaPath = FileUtil.resolve(options.schemaDir, `${parsed.name}.schema.json`);
 
         return schemaPath;
     }

@@ -99,7 +99,7 @@ function createSecureAgent(_class, blocklist) {
                     return;
                 }
 
-                const addresses = Array.isArray(address) ? address : [{ address: address, family }];
+                const addresses = Array.isArray(address) ? address : [{ address, family }];
 
                 for (const addrInfo of addresses) {
                     if (checkIP(addrInfo.address, blocklist)) {

@@ -12,26 +12,26 @@ class TagAliasCommand {
         arguments: [
             {
                 name: "tagName",
-                parser: "split",
+                kind: "positional",
                 index: 0,
                 lowercase: true
             },
             {
                 name: "tagArgs",
-                parser: "split",
+                kind: "positional",
                 index: 1
             },
             {
                 name: "aliasName",
                 from: "tagArgs",
-                parser: "split",
+                kind: "positional",
                 index: 0,
                 lowercase: true
             },
             {
                 name: "aliasArgs",
                 from: "tagArgs",
-                parser: "split",
+                kind: "positional",
                 index: 1
             }
         ]

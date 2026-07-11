@@ -130,7 +130,7 @@ async function loadConfig() {
 
     return await configLoader
         .load()
-        .then(res => res[0])
+        .then(res => Util.first(res))
         .finally(() => configLogger.close());
 }
 

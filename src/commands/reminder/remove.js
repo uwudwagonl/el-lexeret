@@ -1,7 +1,5 @@
 import { getClient, getEmoji } from "../../LevertClient.js";
 
-import Util from "../../util/Util.js";
-
 class ReminderRemoveCommand {
     static info = {
         name: "remove",
@@ -11,19 +9,24 @@ class ReminderRemoveCommand {
         arguments: [
             {
                 name: "index",
-                parser: "value",
                 from: "argsText",
-                transform: value => Util.parseInt(value) - 1
+                type: "integer",
+                required: true,
+                valid: {
+                    min: 1
+                }
             }
         ]
     };
 
     async handler(ctx) {
-        let index = ctx.arg("index");
+        const idxRes = ctx.arg("index", { validate: true });
 
-        if (Util.empty(ctx.argsText) || Number.isNaN(index)) {
+        if (!idxRes.valid) {
             return `${getEmoji("info")} ${this.getArgsHelp("index")}`;
         }
+
+        let index = idxRes.value - 1;
 
         {
             let err;

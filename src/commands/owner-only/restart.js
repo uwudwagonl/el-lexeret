@@ -1,4 +1,4 @@
-import loadConfig from "../../config/loadConfig.js";
+import { loadBotConfig } from "../../config/loadConfig.js";
 
 import { getClient, getEmoji, getLogger } from "../../LevertClient.js";
 
@@ -16,7 +16,7 @@ class RestartCommand {
     async handler(ctx) {
         const time = await getClient().restart(() => {
             getLogger().info("Reloading configs...");
-            return loadConfig(getLogger());
+            return loadBotConfig(getLogger());
         });
 
         DiscordUtil.rebindMessage(ctx.msg, getClient().client);

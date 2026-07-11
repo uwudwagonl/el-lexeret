@@ -8,21 +8,17 @@ const loaderConfig = {
     throwOnFailure: false
 };
 
-function initLoaders(logger) {
-    const configLoader = new ConfigLoader(logger, loaderConfig),
-        reactionsLoader = new ReactionsLoader(logger, loaderConfig),
-        authLoader = new AuthLoader(logger, loaderConfig);
-
+function initConfigLoaders(logger) {
     const loaders = [];
-    loaders.push(configLoader);
-    loaders.push(reactionsLoader);
-    loaders.push(authLoader);
+
+    loaders.push(new ConfigLoader(logger, loaderConfig));
+    loaders.push(new ReactionsLoader(logger, loaderConfig));
 
     return loaders;
 }
 
 async function loadConfig(logger) {
-    const loaders = initLoaders(logger),
+    const loaders = initConfigLoaders(logger),
         configs = {};
 
     for (const loader of loaders) {
@@ -38,4 +34,32 @@ async function loadConfig(logger) {
     return configs;
 }
 
-export default loadConfig;
+async function loadAuth(logger) {
+    const loader = new AuthLoader(logger, loaderConfig);
+
+    const [auth, loadStatus] = await loader.load();
+
+    if (loadStatus === LoadStatus.failed) {
+        return null;
+    }
+
+    return auth;
+}
+
+async function loadBotConfig(logger) {
+    const configs = await loadConfig(logger);
+
+    if (configs === null) {
+        return null;
+    }
+
+    const auth = await loadAuth(logger);
+
+    if (auth === null) {
+        return null;
+    }
+
+    return { configs, auth };
+}
+
+export { loadConfig, loadAuth, loadBotConfig };

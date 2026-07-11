@@ -12,13 +12,13 @@ class TagDumpCommand {
         arguments: [
             {
                 name: "dumpType",
-                parser: "split",
+                kind: "positional",
                 index: 0,
                 lowercase: true
             },
             {
                 name: "spacingText",
-                parser: "split",
+                kind: "positional",
                 index: 1,
                 lowercase: true
             }

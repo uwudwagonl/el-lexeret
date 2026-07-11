@@ -172,7 +172,7 @@ class DBImporter {
     static _parseTag(data) {
         return new Tag({
             ...data,
-            ...Tag.parseScript(data.body)
+            ...Tag.parseTagBody(data.body)
         });
     }
 
@@ -218,7 +218,7 @@ class DBImporter {
 
         {
             const oldDefault = TagTypes.defaults.version;
-            TagTypes.defaults.version = TagTypes.versions.names[0];
+            TagTypes.defaults.version = Util.first(TagTypes.versions.names);
 
             tags = data.map(tag => DBImporter._parseTag(tag));
 

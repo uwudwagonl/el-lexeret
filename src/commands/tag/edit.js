@@ -12,13 +12,13 @@ class TagEditCommand {
         arguments: [
             {
                 name: "tagName",
-                parser: "split",
+                kind: "positional",
                 index: 0,
                 lowercase: true
             },
             {
                 name: "tagArgs",
-                parser: "split",
+                kind: "positional",
                 index: 1
             }
         ]
@@ -56,8 +56,10 @@ class TagEditCommand {
             return `${getEmoji("warn")} You can only edit your own tags.${owner === "not found" ? " Tag owner not found." : ` The tag is owned by \`${owner}\`.`}`;
         }
 
-        let parsed = await this.parentCmd.parseBase(t_args, ctx.msg),
-            { body, meta } = parsed;
+        let parsed = await this.parentCmd.parseBase(t_args, ctx.msg, {
+                allowFilePath: getClient().permManager.allowed(ctx.perm, "admin")
+            }),
+            { body, meta, attachment } = parsed;
 
         if (parsed.err !== null) {
             return parsed.err;
@@ -84,7 +86,13 @@ class TagEditCommand {
             return `${getEmoji("warn")} ${err.message}.`;
         }
 
-        return `${getEmoji("ok")} Edited tag **${escapeMarkdown(t_name)}**.`;
+        let out = `${getEmoji("ok")} Edited tag **${escapeMarkdown(t_name)}**.`;
+
+        if (attachment) {
+            out += `\n${this.parentCmd.attachmentWarning}`;
+        }
+
+        return out;
     }
 }
 

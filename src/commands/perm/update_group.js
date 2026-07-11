@@ -15,30 +15,28 @@ class PermUpdateGroupCommand {
         arguments: [
             {
                 name: "groupName",
-                parser: "split",
+                kind: "positional",
                 index: 0
             },
             {
                 name: "groupData",
-                parser: "split",
-                index: 1
+                kind: "rest"
             },
             {
                 name: "newNameText",
                 from: "groupData",
-                parser: "split",
+                kind: "positional",
                 index: 0
             },
             {
                 name: "newLevelText",
                 from: "groupData",
-                parser: "split",
+                kind: "positional",
                 index: 1
             },
             {
                 name: "newLevel",
-                from: "newLevelText",
-                transform: "int"
+                from: "newLevelText"
             }
         ]
     };
@@ -86,6 +84,8 @@ class PermUpdateGroupCommand {
         if (validUnchangedArgs.has(newLevelText)) {
             newLevel = null;
         } else {
+            newLevel = Number(newLevel);
+
             let err;
             [newLevel, err] = getClient().permManager.checkLevel(newLevel, false);
 

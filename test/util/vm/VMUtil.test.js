@@ -111,6 +111,93 @@ describe("VMUtil", () => {
             ).responseType
         ).toBe("text");
 
+        const malformedConfig = VMUtil.makeRequestConfig(
+            {
+                url: "https://example.com/a/",
+                method: true,
+                headers: true,
+                params: true,
+                data: {},
+                auth: true,
+                responseType: true,
+                responseEncoding: true,
+                proxy: true,
+                decompress: "yes",
+                maxRedirects: "lots",
+                validateStatus: true,
+                errorType: true
+            },
+            context
+        );
+
+        expect(malformedConfig).toMatchObject({
+            url: "https://example.com/a/",
+            data: {},
+            signal: context.abortSignal,
+            timeout: 25,
+            maxRedirects: 5
+        });
+        expect(malformedConfig.validateStatus(500)).toBe(true);
+        expect(typeof malformedConfig.method).toBe("undefined");
+        expect(typeof malformedConfig.headers).toBe("undefined");
+        expect(typeof malformedConfig.params).toBe("undefined");
+        expect(typeof malformedConfig.auth).toBe("undefined");
+        expect(typeof malformedConfig.responseType).toBe("undefined");
+        expect(typeof malformedConfig.responseEncoding).toBe("undefined");
+        expect(typeof malformedConfig.proxy).toBe("undefined");
+        expect(typeof malformedConfig.decompress).toBe("undefined");
+        expect(typeof malformedConfig.errorType).toBe("undefined");
+
+        const validConfig = VMUtil.makeRequestConfig(
+            {
+                url: "https://example.com/test.json",
+                method: "POST",
+                headers: {
+                    "x-test": "1"
+                },
+                params: {
+                    a: 1
+                },
+                auth: {
+                    username: "a",
+                    password: "b"
+                },
+                responseType: "JSON",
+                responseEncoding: "utf8",
+                proxy: {
+                    host: "proxy.example.com",
+                    port: 8080
+                },
+                decompress: false,
+                maxRedirects: 2,
+                validateStatus: status => status === 201,
+                errorType: VMHttpErrorTypes.value
+            },
+            context
+        );
+
+        expect(validConfig.method).toBe("post");
+        expect(validConfig.headers).toEqual({
+            "x-test": "1"
+        });
+        expect(validConfig.params).toEqual({
+            a: 1
+        });
+        expect(validConfig.auth).toEqual({
+            username: "a",
+            password: "b"
+        });
+        expect(validConfig.responseType).toBe("json");
+        expect(validConfig.responseEncoding).toBe("utf8");
+        expect(validConfig.proxy).toEqual({
+            host: "proxy.example.com",
+            port: 8080
+        });
+        expect(validConfig.decompress).toBe(false);
+        expect(validConfig.maxRedirects).toBe(2);
+        expect(validConfig.validateStatus(201)).toBe(true);
+        expect(validConfig.errorType).toBe(VMHttpErrorTypes.value);
+
         expect(() => VMUtil.makeRequestConfig(42, context)).toThrow("Invalid request data");
 
         expect(
@@ -242,7 +329,8 @@ describe("VMUtil", () => {
 
     test("extensively tests rewriteIVMStackTrace and its edge cases", () => {
         const errBasic = new Error("boom");
-        errBasic.stack = "Error: boom\n    at first (file.js:1:1)\n    at (<isolated-vm boundary>)\n    at hidden (file.js:2:1)";
+        errBasic.stack =
+            "Error: boom\n    at first (file.js:1:1)\n    at (<isolated-vm boundary>)\n    at hidden (file.js:2:1)";
         VMUtil.rewriteIVMStackTrace(errBasic);
         expect(errBasic.stack).toBe("Error: boom\n    at first (file.js:1:1)\n    at (<isolated-vm boundary>)");
 
@@ -253,14 +341,18 @@ describe("VMUtil", () => {
         expect(errNoBoundary.stack).toBe(originalStack);
 
         const errMultiLine = new Error("first line\nsecond line\nthird line");
-        errMultiLine.stack = "Error: first line\nsecond line\nthird line\n    at first (file.js:1:1)\n    at (<isolated-vm boundary>)\n    at hidden (file.js:2:1)";
+        errMultiLine.stack =
+            "Error: first line\nsecond line\nthird line\n    at first (file.js:1:1)\n    at (<isolated-vm boundary>)\n    at hidden (file.js:2:1)";
         VMUtil.rewriteIVMStackTrace(errMultiLine);
-        expect(errMultiLine.stack).toBe("Error: first line\nsecond line\nthird line\n    at first (file.js:1:1)\n    at (<isolated-vm boundary>)");
+        expect(errMultiLine.stack).toBe(
+            "Error: first line\nsecond line\nthird line\n    at first (file.js:1:1)\n    at (<isolated-vm boundary>)"
+        );
 
         const errWithProps = new Error("boom");
         errWithProps.code = "ERR_CODE";
         errWithProps.customField = { x: 1 };
-        errWithProps.stack = "Error: boom\n    at first (file.js:1:1)\n    at (<isolated-vm boundary>)\n    at hidden (file.js:2:1)";
+        errWithProps.stack =
+            "Error: boom\n    at first (file.js:1:1)\n    at (<isolated-vm boundary>)\n    at hidden (file.js:2:1)";
         VMUtil.rewriteIVMStackTrace(errWithProps);
         expect(errWithProps.name).toBe("Error");
         expect(errWithProps.message).toBe("boom");
@@ -269,7 +361,8 @@ describe("VMUtil", () => {
         expect(errWithProps.stack).toBe("Error: boom\n    at first (file.js:1:1)\n    at (<isolated-vm boundary>)");
 
         const frozenErr = new Error("boom");
-        frozenErr.stack = "Error: boom\n    at first (file.js:1:1)\n    at (<isolated-vm boundary>)\n    at hidden (file.js:2:1)";
+        frozenErr.stack =
+            "Error: boom\n    at first (file.js:1:1)\n    at (<isolated-vm boundary>)\n    at hidden (file.js:2:1)";
         Object.freeze(frozenErr);
         expect(() => VMUtil.rewriteIVMStackTrace(frozenErr)).not.toThrow();
 
@@ -281,7 +374,9 @@ describe("VMUtil", () => {
             enumerable: false
         });
         expect(() => VMUtil.rewriteIVMStackTrace(nonConfigurableErr)).not.toThrow();
-        expect(nonConfigurableErr.stack).toBe("Error: boom\n    at first (file.js:1:1)\n    at (<isolated-vm boundary>)");
+        expect(nonConfigurableErr.stack).toBe(
+            "Error: boom\n    at first (file.js:1:1)\n    at (<isolated-vm boundary>)"
+        );
 
         const nonWritableErr = new Error("boom");
         Object.defineProperty(nonWritableErr, "stack", {
@@ -303,10 +398,13 @@ describe("VMUtil", () => {
         expect(() => VMUtil.rewriteIVMStackTrace(readOnlyErr)).not.toThrow();
 
         const errMismatch = new Error("original message");
-        errMismatch.stack = "Error: original message\nline 2\n    at first (file.js:1:1)\n    at (<isolated-vm boundary>)\n    at hidden (file.js:2:1)";
+        errMismatch.stack =
+            "Error: original message\nline 2\n    at first (file.js:1:1)\n    at (<isolated-vm boundary>)\n    at hidden (file.js:2:1)";
         errMismatch.message = "new message";
         VMUtil.rewriteIVMStackTrace(errMismatch);
-        expect(errMismatch.stack).toBe("Error: original message\nline 2\n    at first (file.js:1:1)\n    at (<isolated-vm boundary>)");
+        expect(errMismatch.stack).toBe(
+            "Error: original message\nline 2\n    at first (file.js:1:1)\n    at (<isolated-vm boundary>)"
+        );
 
         const errNoFrames = new Error("message\nline 2");
         errNoFrames.stack = "Error: message\nline 2";

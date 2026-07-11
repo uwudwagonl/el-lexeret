@@ -1,6 +1,5 @@
 import diceDist from "./diceDist.js";
 
-import Util from "../Util.js";
 import ArrayUtil from "../ArrayUtil.js";
 import ObjectUtil from "../ObjectUtil.js";
 
@@ -18,7 +17,7 @@ function diceSearch(haystack, needle, options) {
         searchKey = options.searchKey;
     let minDist = options.minDist ?? 0.5;
 
-    if (Util.empty(haystack)) {
+    if (haystack.length < 1) {
         return outputResult([], false);
     }
 

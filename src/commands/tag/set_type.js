@@ -13,28 +13,28 @@ class TagSetTypeCommand {
         arguments: [
             {
                 name: "tagName",
-                parser: "split",
+                kind: "positional",
                 index: 0,
                 lowercase: true
             },
             {
                 name: "tagArgs",
-                parser: "split",
+                kind: "positional",
                 index: 1
             },
             {
                 name: "flag",
                 from: "tagArgs",
-                parser: "split",
+                kind: "positional",
                 index: 0,
-                lowercase: [true, true]
+                lowercase: true
             },
             {
                 name: "value",
                 from: "tagArgs",
-                parser: "split",
+                kind: "positional",
                 index: 1,
-                lowercase: [true, true]
+                lowercase: true
             }
         ]
     };

@@ -14,18 +14,18 @@ class PermAddGroupCommand {
         arguments: [
             {
                 name: "groupName",
-                parser: "split",
+                kind: "positional",
                 index: 0
             },
             {
                 name: "levelText",
-                parser: "split",
+                kind: "positional",
                 index: 1
             },
             {
                 name: "level",
                 from: "levelText",
-                transform: "int"
+                type: "number"
             }
         ]
     };

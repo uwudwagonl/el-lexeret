@@ -1,8 +1,8 @@
+import Util from "../../util/Util.js";
 import replEval from "../../util/commands/replEval.js";
 
 import { getClient } from "../../LevertClient.js";
 
-import Util from "../../util/Util.js";
 import VMUtil from "../../util/vm/VMUtil.js";
 
 class AdminEvalCommand {
@@ -15,7 +15,9 @@ class AdminEvalCommand {
     async handler(ctx) {
         const evalCmd = getClient().commandManager.searchCommands("eval");
 
-        const parsed = await evalCmd.evalBase(ctx.argsText, ctx.msg),
+        const parsed = await evalCmd.evalBase(ctx.argsText, ctx.msg, {
+                allowFilePath: true
+            }),
             body = parsed.body;
 
         if (parsed.err !== null) {

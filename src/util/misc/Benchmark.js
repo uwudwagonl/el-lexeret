@@ -1,3 +1,5 @@
+import { AsyncLocalStorage } from "node:async_hooks";
+
 import Util from "../Util.js";
 
 import UtilError from "../../errors/UtilError.js";
@@ -5,9 +7,12 @@ import UtilError from "../../errors/UtilError.js";
 class Benchmark {
     static data = Object.create(null);
     static counts = Object.create(null);
-    static timepoints = new Map();
 
     static maxTimepointAge = 5 * 60 * 1000;
+
+    static get timepoints() {
+        return this._getCurrentStore().timepoints;
+    }
 
     static getCurrentTime(ms = true) {
         const time = performance.now();
@@ -17,10 +22,10 @@ class Benchmark {
     static startTiming(key) {
         key = this._formatTimeKey(key);
 
-        const t1 = this.getCurrentTime(false);
-        this.timepoints.set(key, t1);
+        const t1 = this.getCurrentTime(false),
+            store = this._getStartStore(key, t1);
 
-        this._startSweepLoop();
+        this._setStore(store);
         return key;
     }
 
@@ -34,38 +39,37 @@ class Benchmark {
 
         delete this.data[key];
 
-        const t1 = this.getCurrentTime(false);
-        this.timepoints.set(key, t1 - t0);
+        const t1 = this.getCurrentTime(false),
+            store = this._getStartStore(key, t1 - t0);
 
-        this._startSweepLoop();
+        this._setStore(store);
         return key;
     }
 
     static stopTiming(key, save = true) {
         key = this._formatTimeKey(key);
 
+        const store = this._getCurrentStore();
+
         if (save === null) {
-            this.timepoints.delete(key);
-            if (Util.empty(this.timepoints)) {
-                this._stopSweepLoop();
-            }
+            this._deleteCurrentTimepoint(store, key);
+
             return NaN;
         }
 
-        const t1 = this.timepoints.get(key);
-        if (typeof t1 === "undefined") {
+        const timepoint = this._getTimepoint(store, key);
+
+        if (timepoint === null) {
             return NaN;
         }
 
-        this.timepoints.delete(key);
-        if (Util.empty(this.timepoints)) {
-            this._stopSweepLoop();
-        }
+        this._deleteCurrentTimepoint(store, key, timepoint.owner);
 
         const t2 = this.getCurrentTime(false),
-            dt = t2 - t1;
+            dt = t2 - timepoint.t1;
 
         const ms = Math.floor(dt);
+
         if (save) {
             this.data[key] = ms;
         }
@@ -81,17 +85,13 @@ class Benchmark {
             return time ?? NaN;
         }
 
-        return typeof time === "undefined"
-            ? `Key "${this._formatDisplayKey(key)}" not found.`
-            : this._formatTime(key, time);
+        return typeof time === "undefined" ? `Key "${key}" not found.` : this._formatTime(key, time);
     }
 
     static deleteTime(key) {
         key = this._formatTimeKey(key);
-        this.timepoints.delete(key);
-        if (Util.empty(this.timepoints)) {
-            this._stopSweepLoop();
-        }
+
+        this._deleteCurrentTimepoint(this._getCurrentStore(), key);
 
         if (Object.hasOwn(this.data, key)) {
             delete this.data[key];
@@ -102,36 +102,35 @@ class Benchmark {
     }
 
     static clear() {
-        for (const key of Reflect.ownKeys(this.data)) {
+        for (const key of Object.keys(this.data)) {
             delete this.data[key];
         }
 
-        this.timepoints.clear();
-        this._stopSweepLoop();
+        this._resetTimepoints();
         this.clearCounts();
     }
 
     static clearExcept(...keys) {
-        const clearKeys = Reflect.ownKeys(this.data).filter(key => !keys.includes(key));
+        keys = keys.map(key => this._formatTimeKey(key));
+
+        const clearKeys = Object.keys(this.data).filter(key => !keys.includes(key));
 
         for (const key of clearKeys) {
             delete this.data[key];
         }
 
-        this.timepoints.clear();
-        this._stopSweepLoop();
+        this._resetTimepoints();
         this.clearCounts();
     }
 
     static clearExceptLast(n = 1) {
-        const clearKeys = Reflect.ownKeys(this.data).slice(0, -n);
+        const clearKeys = Object.keys(this.data).slice(0, -n);
 
         for (const key of clearKeys) {
             delete this.data[key];
         }
 
-        this.timepoints.clear();
-        this._stopSweepLoop();
+        this._resetTimepoints();
         this.clearCounts();
     }
 
@@ -146,7 +145,7 @@ class Benchmark {
                 })
                 .filter(time => typeof time !== "undefined");
         } else {
-            sumTimes = Reflect.ownKeys(this.data).map(key => this.data[key]);
+            sumTimes = Object.values(this.data);
         }
 
         return sumTimes.reduce((a, b) => a + b, 0);
@@ -172,7 +171,8 @@ class Benchmark {
         }
 
         if (format) {
-            const times = Reflect.ownKeys(this.data).map(key => this._formatTime(key, this.data[key]));
+            const times = Object.entries(this.data).map(([key, time]) => this._formatTime(key, time));
+
             if (useSum) {
                 times.push(this._formatTime("sum", sum));
             }
@@ -180,6 +180,7 @@ class Benchmark {
             return times.join(",\n");
         } else {
             const times = Object.assign({}, this.data);
+
             if (useSum) {
                 times.sum = sum;
             }
@@ -201,7 +202,8 @@ class Benchmark {
     }
 
     static getCount(name, format = true) {
-        const displayName = this._formatDisplayKey(name);
+        const displayName = name;
+
         name = this._formatCountName(name);
         const count = this.counts[name];
 
@@ -261,8 +263,8 @@ class Benchmark {
             return false;
         }
 
-        const timeKey = this._formatCount(originalName, count);
-        this.deleteTime(timeKey);
+        const key = this._formatCount(originalName, count);
+        this.deleteTime(key);
 
         this.counts[name]--;
         return true;
@@ -283,13 +285,30 @@ class Benchmark {
         const _this = this;
         return function (...args) {
             _this.incrementCount(name);
-            _this.startTiming(_this.getCount(name));
+
+            const key = _this.getCount(name);
+            _this.startTiming(key);
+
+            let res = null;
 
             try {
-                return func.apply(this, args);
-            } finally {
-                _this.stopTiming(_this.getCount(name));
+                res = func.apply(this, args);
+            } catch (err) {
+                _this.stopTiming(key);
+                throw err;
             }
+
+            return Util.maybeAsyncThen(
+                res,
+                out => {
+                    _this.stopTiming(key);
+                    return out;
+                },
+                err => {
+                    _this.stopTiming(key);
+                    throw err;
+                }
+            );
         };
     }
 
@@ -347,25 +366,30 @@ class Benchmark {
     static _origCountNames = new Map();
     static _origCountFuncs = new Map();
 
+    static _timepointStore = new AsyncLocalStorage();
+    static _activeTimepoints = new Set();
+
+    static _generation = 0;
+    static _defaultTimepoints = {
+        deleted: new Set(),
+        parent: null,
+        generation: 0,
+        timepoints: new Map()
+    };
+
+    static _timepointSweepInterval = 30 * 1000;
+    static _timepointSweepTimer = null;
+
     static _formatTime(key, time) {
-        return `${this._formatDisplayKey(key)}: ${time.toLocaleString()}ms`;
+        return `${key}: ${time.toLocaleString()}ms`;
     }
 
     static _formatTimeKey(key) {
-        switch (typeof key) {
-            case "number":
-                return key.toString();
-            case "string":
-                return key;
-            case "symbol":
-                return key;
-            default:
-                throw new UtilError("Time keys must be strings, numbers, or symbols");
+        if (typeof key !== "string") {
+            throw new UtilError("Time keys must be strings");
         }
-    }
 
-    static _formatDisplayKey(key) {
-        return typeof key === "symbol" ? (key.description ?? "") : String(key);
+        return key;
     }
 
     static _formatCount(name, count) {
@@ -373,16 +397,11 @@ class Benchmark {
     }
 
     static _formatCountInput(name) {
-        switch (typeof name) {
-            case "string":
-                return name;
-            case "number":
-                return name.toString();
-            case "symbol":
-                return name.description ?? "";
-            default:
-                throw new UtilError("Count names must be strings, numbers, or symbols");
+        if (typeof name !== "string") {
+            throw new UtilError("Count names must be strings");
         }
+
+        return name;
     }
 
     static _formatCountOrigName(name) {
@@ -400,21 +419,121 @@ class Benchmark {
         return name.toUpperCase();
     }
 
-    static _timepointSweepInterval = 30 * 1000;
-    static _timepointSweepTimer = null;
+    static _getCurrentStore() {
+        const store = this._timepointStore.getStore();
+
+        if (store?.generation === this._generation) {
+            return store;
+        }
+
+        return this._defaultTimepoints;
+    }
+
+    static _setStore(store) {
+        this._syncTimepoints(store);
+        this._timepointStore.enterWith(store);
+    }
+
+    static _makeStore(parent = null) {
+        return {
+            deleted: new Set(),
+            parent,
+            generation: this._generation,
+            timepoints: new Map()
+        };
+    }
+
+    static _syncTimepoints(store) {
+        if (store.generation !== this._generation || store.timepoints.size < 1) {
+            this._activeTimepoints.delete(store);
+        } else {
+            this._activeTimepoints.add(store);
+        }
+
+        if (this._activeTimepoints.size < 1) {
+            this._stopSweepLoop();
+        } else {
+            this._startSweepLoop();
+        }
+    }
+
+    static _resetTimepoints() {
+        this._generation++;
+        this._defaultTimepoints = this._makeStore();
+
+        this._activeTimepoints.clear();
+        this._stopSweepLoop();
+    }
 
     static _sweepTimepoints() {
         const now = this.getCurrentTime(false);
 
-        for (const [key, t1] of this.timepoints.entries()) {
-            if (now - t1 > this.maxTimepointAge) {
-                this.timepoints.delete(key);
+        for (const store of this._activeTimepoints) {
+            if (store.generation !== this._generation) {
+                this._activeTimepoints.delete(store);
+                continue;
             }
+
+            for (const [key, t1] of store.timepoints.entries()) {
+                if (now - t1 > this.maxTimepointAge) {
+                    store.timepoints.delete(key);
+                }
+            }
+
+            this._syncTimepoints(store);
+        }
+    }
+
+    static _getStartStore(key, t1) {
+        const store = this._getCurrentStore();
+
+        if (this._getTimepoint(store, key) !== null) {
+            const child = this._makeStore(store);
+
+            child.timepoints.set(key, t1);
+            return child;
         }
 
-        if (Util.empty(this.timepoints)) {
-            this._stopSweepLoop();
+        store.deleted.delete(key);
+        store.timepoints.set(key, t1);
+
+        return store;
+    }
+
+    static _getTimepoint(store, key) {
+        while (store !== null && store.generation === this._generation) {
+            if (store.deleted.has(key)) {
+                return null;
+            }
+
+            if (store.timepoints.has(key)) {
+                return {
+                    owner: store,
+                    t1: store.timepoints.get(key)
+                };
+            }
+
+            store = store.parent;
         }
+
+        return null;
+    }
+
+    static _deleteCurrentTimepoint(store, key, owner) {
+        owner ??= this._getTimepoint(store, key)?.owner ?? null;
+
+        if (owner === null) {
+            this._syncTimepoints(store);
+            return;
+        }
+
+        if (owner === store) {
+            store.timepoints.delete(key);
+        } else {
+            store.deleted.add(key);
+        }
+
+        this._syncTimepoints(store);
     }
 
     static _startSweepLoop() {

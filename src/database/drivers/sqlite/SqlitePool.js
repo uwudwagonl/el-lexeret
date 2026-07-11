@@ -6,6 +6,7 @@ import SqlitePoolConnection from "./SqlitePoolConnection.js";
 
 import { PoolEvents } from "./PoolEvents.js";
 
+import Util from "../../../util/Util.js";
 import ObjectUtil from "../../../util/ObjectUtil.js";
 import DatabaseUtil from "../../../util/database/DatabaseUtil.js";
 
@@ -100,7 +101,7 @@ class SqlitePool extends EventEmitter {
         this.min = config.min ?? this.min ?? 1;
         this.max = config.max ?? this.max ?? 4;
 
-        this.acquireTimeout = config.acquireTimeout ?? config.acquireTimeoutMillis ?? this.acquireTimeout ?? 1000;
+        this.acquireTimeout = config.acquireTimeout ?? config.acquireTimeoutMillis ?? this.acquireTimeout ?? 5000;
         this.busyTimeout = config.busyTimeout ?? this.busyTimeout ?? null;
         this.delayRelease = config.delayRelease ?? this.delayRelease ?? false;
 
@@ -116,7 +117,7 @@ class SqlitePool extends EventEmitter {
     }
 
     _setOptions() {
-        const isEphemeral = this.filename === ":memory:" || this.filename === "";
+        const isEphemeral = this.filename === ":memory:" || Util.empty(this.filename);
 
         const min = isEphemeral ? 1 : Math.max(1, this.min),
             max = isEphemeral ? 1 : Math.max(min, this.max);

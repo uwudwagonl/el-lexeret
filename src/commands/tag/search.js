@@ -14,15 +14,15 @@ class TagSearchCommand {
         arguments: [
             {
                 name: "tagName",
-                parser: "split",
+                kind: "positional",
                 index: 0,
-                lowercase: [true, true]
+                lowercase: true
             },
             {
                 name: "resultText",
-                parser: "split",
+                kind: "positional",
                 index: 1,
-                lowercase: [true, true]
+                lowercase: true
             }
         ]
     };

@@ -1,8 +1,8 @@
+import Util from "../../util/Util.js";
+import EmulationCommandUtil from "../../util/commands/EmulationCommandUtil.js";
 import replEval from "../../util/commands/replEval.js";
 
 import { getClient } from "../../LevertClient.js";
-
-import Util from "../../util/Util.js";
 
 class EvalCommand {
     static info = {
@@ -10,11 +10,20 @@ class EvalCommand {
     };
 
     async handler(ctx) {
-        if (Util.empty(ctx.argsText)) {
+        const parsed = await EmulationCommandUtil.resolveGuessedPathBody(ctx.argsText, {
+                name: "script"
+            }),
+            body = parsed.body;
+
+        if (parsed.err !== null) {
+            return `Error: ${parsed.err.message}`;
+        }
+
+        if (Util.empty(body)) {
             return "Can't eval an empty expression.";
         }
 
-        return await replEval(ctx.argsText, {
+        return await replEval(body, {
             getClient,
             Util
         });

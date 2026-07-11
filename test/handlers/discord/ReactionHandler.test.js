@@ -109,6 +109,29 @@ describe("ReactionHandler", () => {
         });
     });
 
+    test("does not treat alphabetical chars inside words as eyes in emoticons", () => {
+        const zigLinux = handler._countUnmatchedParens("(zig on linux)");
+        expect(zigLinux).toEqual({
+            left: 0,
+            right: 0,
+            total: 0
+        });
+
+        const xbox = handler._countUnmatchedParens("(xbox)");
+        expect(xbox).toEqual({
+            left: 0,
+            right: 0,
+            total: 0
+        });
+
+        const standalone = handler._countUnmatchedParens("x)");
+        expect(standalone).toEqual({
+            left: 0,
+            right: 0,
+            total: 0
+        });
+    });
+
     test("batches ordered word and paren reactions together", async () => {
         const reacts = [],
             msg = createReactingMessage("rabbit ```leveret``` ((", reacts);

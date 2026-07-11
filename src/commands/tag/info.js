@@ -19,15 +19,15 @@ class TagInfoCommand {
         arguments: [
             {
                 name: "tagName",
-                parser: "split",
+                kind: "positional",
                 index: 0,
-                lowercase: [true, true]
+                lowercase: true
             },
             {
                 name: "infoType",
-                parser: "split",
+                kind: "positional",
                 index: 1,
-                lowercase: [true, true]
+                lowercase: true
             }
         ]
     };

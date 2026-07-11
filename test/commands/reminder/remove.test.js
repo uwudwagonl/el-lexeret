@@ -36,7 +36,7 @@ describe("reminder remove command", () => {
         const command = getCommand(runtime, "reminder");
 
         await expect(executeCommand(command, "remove", { msg })).resolves.toContain("index");
-        await expect(executeCommand(command, "remove 0", { msg })).resolves.toContain("Invalid reminder index");
+        await expect(executeCommand(command, "remove 0", { msg })).resolves.toContain("index");
 
         vi.spyOn(runtime.client.reminderManager, "remove").mockResolvedValueOnce(null);
         await expect(executeCommand(command, "remove 1", { msg })).resolves.toContain("don't have any reminders");

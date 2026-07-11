@@ -36,7 +36,7 @@ class LevertClient extends DiscordClient {
     static minPriority = -999;
     static maxPriority = 999;
 
-    constructor(configs) {
+    constructor(auth, configs) {
         super();
 
         if (client === null) {
@@ -46,6 +46,7 @@ class LevertClient extends DiscordClient {
         }
 
         this.version = version;
+        this.setAuth(auth);
         this.setConfigs(configs);
 
         this._lifecycle = {
@@ -92,14 +93,10 @@ class LevertClient extends DiscordClient {
         }
 
         const config = configs.config ?? {},
-            reactions = configs.reactions ?? {},
-            auth = configs.auth ?? {};
+            reactions = configs.reactions ?? {};
 
         this.config = config;
         this.reactions = reactions;
-
-        token = auth.token;
-        this.owner = auth.owner;
 
         this.setOptions({
             wrapEvents: this.config.wrapEvents,
@@ -107,6 +104,15 @@ class LevertClient extends DiscordClient {
             pingReply: config.pingReply,
             mentionUsers: config.mentionUsers
         });
+    }
+
+    setAuth(auth) {
+        if (auth == null) {
+            throw new ClientError("Auth config cannot be undefined");
+        }
+
+        token = auth.token;
+        this.owner = auth.owner;
     }
 
     loadComponents(groupName, barrel, ctorArgs, options) {
@@ -165,16 +171,25 @@ class LevertClient extends DiscordClient {
             ctorArgs[compName] = finalArgs;
         }
 
-        const enabledComps = components.filter(([compName]) => ctorArgs[compName].enabled),
-            compInstances = enabledComps.map(([compName, compClass]) => {
-                const compArgs = ctorArgs[compName].args;
+        const enabledComps = components.filter(([compName]) => {
+            if (typeof ctorArgs[compName] === "undefined") {
+                throw new ClientError(`Constructor arguments are missing for component "${compName}"`, {
+                    compName
+                });
+            }
 
-                if (!Array.isArray(compArgs)) {
-                    throw new ClientError(`Invalid constructor args for component "${compName}"`, { compName });
-                }
+            return ctorArgs[compName].enabled;
+        });
 
-                return [compName, new compClass(...compArgs)];
-            });
+        const compInstances = enabledComps.map(([compName, compClass]) => {
+            const compArgs = ctorArgs[compName].args;
+
+            if (!Array.isArray(compArgs)) {
+                throw new ClientError(`Invalid constructor args for component "${compName}"`, { compName });
+            }
+
+            return [compName, new compClass(...compArgs)];
+        });
 
         for (const [compName, compInst] of compInstances) {
             const compPriority = compInst.priority;
@@ -521,7 +536,8 @@ class LevertClient extends DiscordClient {
                 previewHandler: [this.config.enablePreviews],
                 reactionHandler: this.reactions.enableReacts,
                 sedHandler: this.config.enableSed,
-                cliCommandHandler: this.config.enableCliCommands
+                cliCommandHandler: this.config.enableCliCommands,
+                websocketCommandHandler: this.config.enableWebsocket
             },
 
             {
@@ -547,6 +563,11 @@ class LevertClient extends DiscordClient {
             commandManager: [],
             reminderManager: this.config.enableReminders,
             cliCommandManager: this.config.enableCliCommands,
+            websocketCommandManager: this.config.enableWebsocket,
+            gatewayManager: {
+                enabled: this.config.enableWebsocket,
+                args: [true, this.config.websocketPort]
+            },
             inputManager: {
                 enabled: this.config.enableCliCommands,
                 args: [
@@ -589,8 +610,8 @@ class LevertClient extends DiscordClient {
 
         this.logger.info("Adding Discord transport(s)...");
 
-        const useChannel = this.config.logChannelId !== "",
-            useWebhook = this.config.logWebhook !== "";
+        const useChannel = !Util.empty(this.config.logChannelId),
+            useWebhook = !Util.empty(this.config.logWebhook);
 
         if (!useChannel && !useWebhook) {
             this.logger.error("Can't add Discord transports. No channel id or a webhook url was provided.");
@@ -681,6 +702,25 @@ class LevertClient extends DiscordClient {
         this.inputManager.active = false;
     }
 
+    _setupGatewayManager() {
+        if (!this.config.enableWebsocket) {
+            return;
+        }
+
+        ArrayUtil.removeItem(this.handlerList, this.websocketCommandHandler);
+
+        this.gatewayManager.handleMessage = this.websocketCommandHandler.execute;
+        this.gatewayManager.active = true;
+    }
+
+    _disableGatewayManager() {
+        if (!this.config.enableWebsocket) {
+            return;
+        }
+
+        this.gatewayManager.active = false;
+    }
+
     _logStartedTime() {
         const time = Benchmark.stopTiming("__t1__1");
         this.logger.info(`Startup complete in ${Util.formatNumber(time)} ms.`);
@@ -744,6 +784,7 @@ class LevertClient extends DiscordClient {
         this._addDiscordTransports();
 
         const time = this._logStartedTime();
+        this._setupGatewayManager();
         this._setupInputManager();
 
         return time;
@@ -757,6 +798,7 @@ class LevertClient extends DiscordClient {
         }
 
         this._disableInputManager();
+        this._disableGatewayManager();
 
         this.logger.info("Stopping bot...");
         this._removeDiscordTransports();
@@ -785,6 +827,15 @@ class LevertClient extends DiscordClient {
             throw new ClientError("The bot can't be restarted if it hasn't been started once");
         }
 
+        const setReloadData = data => {
+            if (!TypeTester.isObject(data)) {
+                throw new ClientError("Reloaded config cannot be undefined");
+            }
+
+            this.setAuth(data.auth);
+            this.setConfigs(data.configs);
+        };
+
         this.logger.info("Restarting bot...");
         this.silenceDiscordTransports(true);
 
@@ -793,12 +844,11 @@ class LevertClient extends DiscordClient {
 
         switch (typeof configs) {
             case "object":
-                this.setConfigs(configs);
+                setReloadData(configs);
                 break;
             case "function":
                 const obj = await configs();
-                this.setConfigs(obj);
-
+                setReloadData(obj);
                 break;
         }
 

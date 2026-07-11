@@ -1,32 +1,27 @@
 import { escapeMarkdown } from "discord.js";
 
-import { TagTypes } from "../../structures/tag/TagTypes.js";
 import { MessageLimitTypes } from "../../handlers/discord/MessageLimitTypes.js";
 
-import { resolveVMLanguage } from "../../structures/vm/VMLanguages.js";
+import Tag from "../../structures/tag/Tag.js";
+import { TagTypes } from "../../structures/tag/TagTypes.js";
 
 import { getClient, getEmoji, getLogger } from "../../LevertClient.js";
 
 import Util from "../../util/Util.js";
 import TypeTester from "../../util/TypeTester.js";
-import ParserUtil from "../../util/commands/ParserUtil.js";
 import DiscordUtil from "../../util/DiscordUtil.js";
+import ObjectUtil from "../../util/ObjectUtil.js";
+import EmulationCommandUtil from "../../util/commands/EmulationCommandUtil.js";
 import getInspectorAttachOutput from "../../util/vm/getInspectorAttachOutput.js";
+
+import PositionalCommandReader from "../../parsers/command/reader/PositionalCommandReader.js";
 
 const dummyMsg = {
     attachments: new Map()
 };
 
-function getParsedMeta(parsed, type) {
-    if (!parsed.isScript) {
-        return {};
-    }
-
-    return {
-        type: type ?? TagTypes.defaults.scriptType,
-        language: resolveVMLanguage(parsed.lang, TagTypes.defaults.language)
-    };
-}
+const tagAttachmentWarning =
+    "**Heads-up! Discord-hosted images disappear if the original message that provided them is deleted.**";
 
 async function getPreview(out, msg) {
     let preview = null;
@@ -72,13 +67,13 @@ class TagCommand {
         arguments: [
             {
                 name: "tagName",
-                parser: "split",
+                kind: "positional",
                 index: 0,
                 lowercase: true
             },
             {
                 name: "tagArgs",
-                parser: "split",
+                kind: "positional",
                 index: 1
             }
         ],
@@ -104,8 +99,14 @@ class TagCommand {
         ]
     };
 
-    async parseBase(t_args, msg) {
-        const [t_type, t_body] = ParserUtil.splitArgs(t_args, true);
+    attachmentWarning = tagAttachmentWarning;
+
+    async parseBase(t_args, msg, options) {
+        options = ObjectUtil.guaranteeObject(options);
+
+        const [t_type, t_body] = PositionalCommandReader.split(t_args, {
+            lowercase: true
+        });
         msg ??= dummyMsg;
 
         let type = null;
@@ -125,6 +126,7 @@ class TagCommand {
             return {
                 body: null,
                 meta: null,
+                attachment: false,
                 err: `${getEmoji("warn")} Tag body is empty.`
             };
         }
@@ -137,7 +139,7 @@ class TagCommand {
 
                 parsed = {
                     ...downloaded,
-                    meta: getParsedMeta(downloaded, type)
+                    meta: Tag.getParsedMeta(downloaded, type)
                 };
             } catch (err) {
                 getLogger().error(err);
@@ -146,11 +148,13 @@ class TagCommand {
                     ? {
                           body: null,
                           meta: null,
+                          attachment: false,
                           err: `${getEmoji("warn")} ${err.message}.`
                       }
                     : {
                           body: null,
                           meta: null,
+                          attachment: false,
                           err: {
                               content: `${getEmoji("error")} Downloading attachment failed:`,
                               ...DiscordUtil.getFileAttach(err.stack, "error.js")
@@ -158,13 +162,39 @@ class TagCommand {
                       };
             }
         } else {
-            parsed = ParserUtil.parseScript(body);
-            parsed.meta = getParsedMeta(parsed, type);
+            const parsedBody = options.allowFilePath
+                ? await EmulationCommandUtil.resolveGuessedPathBody(body, {
+                      name: "tag body"
+                  })
+                : {
+                      body,
+                      err: null,
+                      guessedPath: false
+                  };
+
+            if (parsedBody.err !== null) {
+                return {
+                    body: null,
+                    meta: null,
+                    attachment: false,
+                    err: `${getEmoji(parsedBody.err.level)} ${parsedBody.err.message}.`
+                };
+            }
+
+            parsed = parsedBody.guessedPath
+                ? {
+                      body: parsedBody.body,
+                      meta: Tag.getParsedMeta(parsedBody, type)
+                  }
+                : Tag.parseTagBody(parsedBody.body, type);
         }
+
+        const attachment = hasAttachments || !Util.empty(DiscordUtil.findAttachmentUrls(parsed.body));
 
         return {
             body: parsed.body,
             meta: parsed.meta,
+            attachment,
             err: null
         };
     }
@@ -180,7 +210,9 @@ class TagCommand {
 
         if (getClient().tagVM?.enableUserInspector && t_name === "debug") {
             debug = true;
-            [t_name, t_args] = ParserUtil.splitArgs(t_args, true);
+            [t_name, t_args] = PositionalCommandReader.split(t_args, {
+                lowercase: true
+            });
 
             if (Util.empty(t_name)) {
                 return `${getEmoji("info")} ${this.getSubcmdHelp()} **debug** \`tag_name [tag_args]\``;

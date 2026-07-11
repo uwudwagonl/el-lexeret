@@ -12,7 +12,9 @@ class PythonEvalCommand {
     }
 
     handler(ctx) {
-        return this.parentCmd.altevalBase(ctx.argsText, ctx.msg, 71);
+        return this.parentCmd.altevalBase(ctx.argsText, ctx.msg, 71, {
+            allowFilePath: this.parentCmd.canUseFilePath(ctx)
+        });
     }
 }
 

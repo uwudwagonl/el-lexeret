@@ -25,7 +25,7 @@ class PermCheckCommand {
         arguments: [
             {
                 name: "userName",
-                parser: "split",
+                kind: "positional",
                 index: 0
             }
         ]

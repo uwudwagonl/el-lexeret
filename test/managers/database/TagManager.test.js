@@ -6,8 +6,8 @@ let runtime;
 let Tag;
 let TagError;
 let TagManager;
-let managers;
-let servers;
+let managers = [];
+let servers = [];
 
 async function createManager(enabled = true) {
     const manager = new TagManager(enabled);
@@ -44,7 +44,7 @@ beforeEach(async () => {
 
         return Promise.resolve({ id, username: `name-${id}` });
     };
-});
+}, 20000);
 
 afterEach(async () => {
     for (const manager of managers) {
@@ -283,6 +283,44 @@ describe("TagManager", () => {
 
         await expect(manager.downloadBody("", { attachments: [] }, "invalid")).rejects.toThrow("Invalid body type");
         expect(TagError).toBeDefined();
+    });
+
+    test("emulates tags with tag fields, defaults, and normal execution flow", async () => {
+        const manager = await createManager();
+
+        await manager.add("target", "return args", "u1", { type: "ivm" });
+
+        const emulated = manager.emulateTag({
+            body: "return args",
+            type: "ivm",
+            owner: "u2",
+            name: "faux",
+            args: "bound",
+            language: "js"
+        });
+
+        expect(emulated.name).toBe("faux");
+        expect(emulated.body).toBe("return args");
+        expect(emulated.owner).toBe("u2");
+        expect(emulated.args).toBe("bound");
+        expect(emulated.getScriptType()).toBe("ivm");
+        expect(emulated.getScriptLanguage()).toBe("js");
+
+        expect(await manager.execute(emulated, "runtime")).toBe("tagVM:return args:runtime bound:faux:js");
+
+        const alias = manager.emulateTag({
+            alias: "target",
+            owner: "u3"
+        });
+
+        expect(alias.name).toBe("dummy-tag");
+        expect(alias.aliasName).toBe("target");
+        expect(await manager.execute(alias, "runtime")).toBe("tagVM:return args:runtime:dummy-tag:js");
+
+        expect(manager.emulateTag({ body: "return args", type: "ivm" }).owner).toBe("owner-id");
+
+        runtime.client.owner = "";
+        expect(() => manager.emulateTag({ body: "return 1" })).toThrow("Tag owner is required for emulation");
     });
 });
 

@@ -28,13 +28,13 @@ function logWordsUsage(msg, words) {
     );
 }
 
-function logReactTime(timeKey) {
+function logReactTime(key) {
     if (!getLogger().isDebugEnabled()) {
-        Benchmark.stopTiming(timeKey, null);
+        Benchmark.stopTiming(key, null);
         return;
     }
 
-    const elapsed = Benchmark.stopTiming(timeKey, false);
+    const elapsed = Benchmark.stopTiming(key, false);
     getLogger().debug(`Reacting took ${Util.formatNumber(elapsed)} ms.`);
 }
 
@@ -45,31 +45,30 @@ function logRemove(msg) {
         );
 }
 
-function logRemoveTime(timeKey) {
+function logRemoveTime(key) {
     if (!getLogger().isDebugEnabled()) {
-        Benchmark.stopTiming(timeKey, null);
+        Benchmark.stopTiming(key, null);
         return;
     }
 
-    const elapsed = Benchmark.stopTiming(timeKey, false);
+    const elapsed = Benchmark.stopTiming(key, false);
     getLogger().debug(`Removing reactions took ${Util.formatNumber(elapsed)} ms.`);
+}
+
+function getEmoji(reactList) {
+    return Util.single(reactList) ? Util.first(reactList) : Util.randomElement(reactList);
+}
+
+function toStringArray(value) {
+    return ArrayUtil.guaranteeArray(value, undefined, true).filter(Util.nonemptyString);
 }
 
 class ReactionHandler extends Handler {
     static $name = "reactionHandler";
     priority = -1;
 
-    static emoticonEyeChars = ":;=8xX";
-    static emoticonNoseChars = "-^'oO*";
-
-    static _parenEmoticonRegex = new RegExp(
-        `(?:[<>]?[${RegexUtil.escapeCharClass(this.emoticonEyeChars)}][${RegexUtil.escapeCharClass(
-            this.emoticonNoseChars
-        )}]?[()]+|[()]+[${RegexUtil.escapeCharClass(this.emoticonNoseChars)}]?[${RegexUtil.escapeCharClass(
-            this.emoticonEyeChars
-        )}]>?)`,
-        "g"
-    );
+    static emojiEyeChars = ":;=8xX";
+    static emojiNoseChars = "-^'oO*";
 
     constructor(enabled) {
         super(enabled);
@@ -90,12 +89,12 @@ class ReactionHandler extends Handler {
 
     async removeReacts(msg) {
         logRemove(msg);
-        const timeKey = Benchmark.startTiming(Symbol("reaction_remove"));
+        Benchmark.startTiming("reaction_remove");
 
         let botId = getClient().client.user.id;
         await this.reactionTracker.deleteWithCallback(msg, "reaction", react => react.users.remove(botId));
 
-        logRemoveTime(timeKey);
+        logRemoveTime("reaction_remove");
     }
 
     async execute(msg) {
@@ -103,7 +102,7 @@ class ReactionHandler extends Handler {
             return false;
         }
 
-        const timeKey = Benchmark.startTiming(Symbol("reaction_execute"));
+        Benchmark.startTiming("reaction_execute");
 
         const plan = this._getReactionPlan(msg.content);
 
@@ -118,9 +117,9 @@ class ReactionHandler extends Handler {
         const reacted = await this._reactWithPlan(msg, plan);
 
         if (reacted) {
-            logReactTime(timeKey);
+            logReactTime("reaction_execute");
         } else {
-            Benchmark.stopTiming(timeKey, null);
+            Benchmark.stopTiming("reaction_execute", null);
         }
 
         return reacted;
@@ -131,7 +130,7 @@ class ReactionHandler extends Handler {
             return false;
         }
 
-        const timeKey = Benchmark.startTiming(Symbol("reaction_resubmit"));
+        Benchmark.startTiming("reaction_resubmit");
 
         const plan = this._getReactionPlan(msg.content),
             diff = this._getReactionDiff(msg, plan.emojis);
@@ -147,9 +146,9 @@ class ReactionHandler extends Handler {
         const reacted = await this._reactWithDiff(msg, diff);
 
         if (reacted) {
-            logReactTime(timeKey);
+            logReactTime("reaction_resubmit");
         } else {
-            Benchmark.stopTiming(timeKey, null);
+            Benchmark.stopTiming("reaction_resubmit", null);
         }
 
         return reacted;
@@ -160,13 +159,17 @@ class ReactionHandler extends Handler {
         this._setParens();
     }
 
-    static _getEmoji(reactList) {
-        return Util.single(reactList) ? Util.first(reactList) : Util.randomElement(reactList);
-    }
+    static _faceRegex = (() => {
+        const [symEscaped, letEscaped] = ArrayUtil.split(this.emojiEyeChars.split(""), c => /[a-zA-Z]/.test(c)).map(
+                chars => RegexUtil.escapeCharClass(chars.join(""))
+            ),
+            noseEscaped = RegexUtil.escapeCharClass(this.emojiNoseChars);
 
-    static _toStringArray(value) {
-        return ArrayUtil.guaranteeArray(value, undefined, true).filter(Util.nonemptyString);
-    }
+        return new RegExp(
+            `(?:[<>]?[${symEscaped}]|(?<!\\w)[${letEscaped}])[${noseEscaped}]?[()]+|[()]+[${noseEscaped}]?(?:[${symEscaped}]>?|[${letEscaped}](?!\\w))`,
+            "g"
+        );
+    })();
 
     static _getReactionEmoji(reaction) {
         if (reaction == null) {
@@ -198,10 +201,8 @@ class ReactionHandler extends Handler {
         const reactMap = new Map();
 
         for (const elem of funnyWords) {
-            const words = ReactionHandler._toStringArray(elem.word ?? elem.words).map(word =>
-                    normalizeText(word).trim()
-                ),
-                emojis = ReactionHandler._toStringArray(elem.emoji ?? elem.emojis);
+            const words = toStringArray(elem.word ?? elem.words).map(word => normalizeText(word).trim()),
+                emojis = toStringArray(elem.emoji ?? elem.emojis);
 
             if (Util.empty(words) || Util.empty(emojis)) {
                 continue;
@@ -227,8 +228,9 @@ class ReactionHandler extends Handler {
 
     _setParens() {
         const parens = getClient().reactions.parens;
-        const left = ReactionHandler._toStringArray(parens?.left),
-            right = ReactionHandler._toStringArray(parens?.right);
+
+        const left = toStringArray(parens?.left),
+            right = toStringArray(parens?.right);
 
         this.enableParens = !Util.empty(left) || !Util.empty(right);
         this.parens = { left, right };
@@ -250,7 +252,7 @@ class ReactionHandler extends Handler {
         this._wordRegex.lastIndex = 0;
 
         for (const match of str.matchAll(this._wordRegex)) {
-            const word = match[0];
+            const word = Util.first(match);
 
             if (!this.multipleReacts && seenWords.has(word)) {
                 continue;
@@ -289,8 +291,8 @@ class ReactionHandler extends Handler {
             return info;
         }
 
-        ReactionHandler._parenEmoticonRegex.lastIndex = 0;
-        const clean = str.replace(ReactionHandler._parenEmoticonRegex, match => match.replace(/[()]/g, " "));
+        ReactionHandler._faceRegex.lastIndex = 0;
+        const clean = str.replace(ReactionHandler._faceRegex, match => match.replace(/[()]/g, " "));
 
         const unmatchedLeft = [],
             unmatchedRight = [];
@@ -353,7 +355,7 @@ class ReactionHandler extends Handler {
         wordMatches.forEach(match => {
             planned.push({
                 index: match.index,
-                emoji: ReactionHandler._getEmoji(match.emojis),
+                emoji: getEmoji(match.emojis),
                 word: match.word
             });
         });
@@ -422,7 +424,9 @@ class ReactionHandler extends Handler {
 
         if (hasRemoved) {
             logRemove(msg);
-            const timeKey = Benchmark.startTiming(Symbol("reaction_diff_remove"));
+
+            Benchmark.startTiming("reaction_diff_remove");
+
             const botId = getClient().client.user.id;
 
             await Promise.all(
@@ -441,7 +445,7 @@ class ReactionHandler extends Handler {
                 })
             );
 
-            logRemoveTime(timeKey);
+            logRemoveTime("reaction_diff_remove");
         }
 
         if (hasAdded) {
@@ -452,7 +456,7 @@ class ReactionHandler extends Handler {
     }
 
     async _parensReact(content, msg) {
-        const timeKey = Benchmark.startTiming(Symbol("reaction_parens"));
+        Benchmark.startTiming("reaction_parens");
 
         const plan = this._getReactionPlan(content, {
             words: false,
@@ -460,7 +464,7 @@ class ReactionHandler extends Handler {
         });
 
         if (plan.parens.total < 1) {
-            Benchmark.stopTiming(timeKey, null);
+            Benchmark.stopTiming("reaction_parens", null);
             return false;
         }
 
@@ -468,16 +472,16 @@ class ReactionHandler extends Handler {
         const reacted = await this._reactWithPlan(msg, plan);
 
         if (reacted) {
-            logReactTime(timeKey);
+            logReactTime("reaction_parens");
         } else {
-            Benchmark.stopTiming(timeKey, null);
+            Benchmark.stopTiming("reaction_parens", null);
         }
 
         return reacted;
     }
 
     async _funnyReact(content, msg) {
-        const timeKey = Benchmark.startTiming(Symbol("reaction_words"));
+        Benchmark.startTiming("reaction_words");
 
         const plan = this._getReactionPlan(content, {
             words: true,
@@ -485,7 +489,7 @@ class ReactionHandler extends Handler {
         });
 
         if (Util.empty(plan.words)) {
-            Benchmark.stopTiming(timeKey, null);
+            Benchmark.stopTiming("reaction_words", null);
             return false;
         }
 
@@ -493,9 +497,9 @@ class ReactionHandler extends Handler {
         const reacted = await this._reactWithPlan(msg, plan);
 
         if (reacted) {
-            logReactTime(timeKey);
+            logReactTime("reaction_words");
         } else {
-            Benchmark.stopTiming(timeKey, null);
+            Benchmark.stopTiming("reaction_words", null);
         }
 
         return reacted;

@@ -25,7 +25,7 @@ class BaseCommand {
     constructor(info) {
         this.info = new this.constructor.infoClass(info);
 
-        if (typeof this.handler !== "function") {
+        if (!Object.hasOwn(this.constructor.prototype, "handler")) {
             throw new CommandError("Command must have a handler function");
         }
 

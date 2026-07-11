@@ -12,6 +12,5 @@
             "type": "string",
             "title": "Owner id"
         }
-    },
-    "required": ["token"]
+    }
 }

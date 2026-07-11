@@ -12,7 +12,9 @@ class Vm2EvalCommand {
     }
 
     async handler(ctx) {
-        const parsed = await this.parentCmd.evalBase(ctx.argsText, ctx.msg),
+        const parsed = await this.parentCmd.evalBase(ctx.argsText, ctx.msg, {
+                allowFilePath: this.parentCmd.canUseFilePath(ctx)
+            }),
             body = parsed.body;
 
         if (parsed.err !== null) {

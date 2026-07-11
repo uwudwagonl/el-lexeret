@@ -7,10 +7,12 @@ describe("managers index", () => {
         expect(Object.keys(managers).sort()).toEqual([
             "cliCommandManager",
             "commandManager",
+            "gatewayManager",
             "inputManager",
             "permManager",
             "reminderManager",
-            "tagManager"
+            "tagManager",
+            "websocketCommandManager"
         ]);
     });
 });

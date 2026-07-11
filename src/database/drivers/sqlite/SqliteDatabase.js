@@ -14,8 +14,8 @@ import { EventPrefixes } from "./EventPrefixes.js";
 import { DatabaseEvents } from "./DatabaseEvents.js";
 import { OpenModes } from "./OpenModes.js";
 
-import ObjectUtil from "../../../util/ObjectUtil.js";
 import Util from "../../../util/Util.js";
+import ObjectUtil from "../../../util/ObjectUtil.js";
 import DatabaseUtil from "../../../util/database/DatabaseUtil.js";
 import RegexUtil from "../../../util/misc/RegexUtil.js";
 
@@ -429,7 +429,7 @@ class SqliteDatabase extends StatementDatabase(EventEmitter) {
         this.min = config.min ?? 1;
         this.max = config.max ?? 4;
 
-        this.acquireTimeout = config.acquireTimeout ?? 1000;
+        this.acquireTimeout = config.acquireTimeout ?? 5000;
         this.busyTimeout = config.busyTimeout;
         this.delayRelease = config.delayRelease ?? false;
 

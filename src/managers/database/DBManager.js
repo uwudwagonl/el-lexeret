@@ -1,11 +1,11 @@
 import fs from "node:fs/promises";
-import path from "node:path";
 
 import Manager from "../Manager.js";
 
 import { getConfig, getLogger } from "../../LevertClient.js";
 
 import Util from "../../util/Util.js";
+import FileUtil from "../../util/misc/FileUtil.js";
 
 import dbFilenames from "../../database/config/dbFilenames.json" assert { type: "json" };
 
@@ -50,14 +50,14 @@ class DBManager extends Manager {
     };
 
     _resolveScopedPath(base) {
-        return path.resolve(projRoot, base, this.dbName);
+        return FileUtil.resolve(base, this.dbName);
     }
 
     _setPaths() {
         this._dbDir = getConfig().dbPath;
 
         const dbFilename = dbFilenames[this.dbName];
-        this._dbPath = path.resolve(projRoot, this._dbDir, dbFilename);
+        this._dbPath = FileUtil.resolve(this._dbDir, dbFilename);
 
         this._queryDir = this._resolveScopedPath(dbFilenames.queryPath);
         this._migrationsDir = this._resolveScopedPath(dbFilenames.migrationsPath);

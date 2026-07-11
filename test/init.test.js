@@ -30,13 +30,15 @@ describe("init", () => {
 
         const { LevertClient } = await import("../src/LevertClient.js");
         const startSpy = vi.spyOn(LevertClient.prototype, "start").mockResolvedValue(undefined);
-        const ctorSpy = vi.spyOn(LevertClient.prototype, "setConfigs");
+        const configSpy = vi.spyOn(LevertClient.prototype, "setConfigs");
+        const authSpy = vi.spyOn(LevertClient.prototype, "setAuth");
 
         const { default: init } = await import("../src/init.js");
 
         await expect(init()).resolves.toBeUndefined();
 
-        expect(ctorSpy).toHaveBeenCalledOnce();
+        expect(configSpy).toHaveBeenCalledOnce();
+        expect(authSpy).toHaveBeenCalledOnce();
         expect(startSpy).toHaveBeenCalledOnce();
     });
 

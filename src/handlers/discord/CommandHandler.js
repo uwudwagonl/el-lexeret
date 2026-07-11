@@ -119,7 +119,7 @@ class CommandHandler extends MessageHandler {
         const timer = this._startProcessingTimer(context),
             timeoutError = new CommandError(`Timed out executing command ${bold(cmd.name)}.`);
 
-        const timeKey = Benchmark.startTiming(Symbol("command_execute"));
+        Benchmark.startTiming("command_execute");
 
         try {
             outRes = await this._runCommandWithTimeout(cmd, context, timeoutError);
@@ -131,7 +131,7 @@ class CommandHandler extends MessageHandler {
         }
 
         const outInfo = {
-            elapsed: Benchmark.stopTiming(timeKey, false),
+            elapsed: Benchmark.stopTiming("command_execute", false),
             timedOut: outErr === timeoutError
         };
 

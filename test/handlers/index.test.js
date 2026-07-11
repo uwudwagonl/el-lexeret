@@ -9,7 +9,8 @@ describe("handlers index", () => {
             "commandHandler",
             "previewHandler",
             "reactionHandler",
-            "sedHandler"
+            "sedHandler",
+            "websocketCommandHandler"
         ]);
     });
 });

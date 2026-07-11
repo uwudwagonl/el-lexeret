@@ -6,6 +6,27 @@ import { VMHttpErrorTypes } from "./VMHttpErrorTypes.js";
 
 import UtilError from "../../errors/UtilError.js";
 
+function normalizeResponseType(value) {
+    if (!Util.nonemptyString(value)) {
+        return undefined;
+    }
+
+    value = value.toLowerCase();
+    return VMUtil._allowedResponseTypes.includes(value) ? value : undefined;
+}
+
+function normalizeRequestNumber(value, min = 0) {
+    if (!Number.isFinite(value)) {
+        return undefined;
+    }
+
+    return Math.max(Math.round(value), min);
+}
+
+function normalizeRequestErrorType(value) {
+    return Object.values(VMHttpErrorTypes).includes(value) ? value : undefined;
+}
+
 let VMUtil = {
     resolveObject(path, propertyMap) {
         if (!Util.nonemptyString(path)) {
@@ -126,20 +147,27 @@ let VMUtil = {
         maxRedirects: 5,
         validateStatus: () => true
     },
-    _allowedReqConfig: [
-        "url",
-        "method",
-        "headers",
-        "params",
-        "data",
-        "auth",
-        "responseType",
-        "responseEncoding",
-        "proxy",
-        "decompress",
-        "errorType"
-    ],
+
+    _allowedResponseTypes: ["arraybuffer", "json", "text"],
     _jsonRequestRegex: /\.(json|geojson)(?:[?#]|$)/i,
+
+    _normalizeRequestConfig: data =>
+        ObjectUtil.removeUndefinedValues({
+            url: Util.nonemptyString(data.url) ? data.url : undefined,
+            method: Util.nonemptyString(data.method) ? data.method.toLowerCase() : undefined,
+            headers: TypeTester.isObject(data.headers) ? data.headers : undefined,
+            params: TypeTester.isObject(data.params) ? data.params : undefined,
+            data: data.data ?? undefined,
+            auth: TypeTester.isObject(data.auth) ? data.auth : undefined,
+            responseType: normalizeResponseType(data.responseType),
+            responseEncoding: Util.nonemptyString(data.responseEncoding) ? data.responseEncoding : undefined,
+            proxy: TypeTester.isObject(data.proxy) ? data.proxy : undefined,
+            decompress: typeof data.decompress === "boolean" ? data.decompress : undefined,
+            maxRedirects: normalizeRequestNumber(data.maxRedirects),
+            validateStatus: typeof data.validateStatus === "function" ? data.validateStatus : undefined,
+            errorType: normalizeRequestErrorType(data.errorType)
+        }),
+
     makeRequestConfig: (data, context) => {
         const errorType = data?.errorType ?? VMHttpErrorTypes.legacy;
 
@@ -148,10 +176,10 @@ let VMUtil = {
         };
 
         if (TypeTester.isObject(data)) {
-            const filtered = ObjectUtil.filterObject(data, key => VMUtil._allowedReqConfig.includes(key)),
+            const normalized = VMUtil._normalizeRequestConfig(data),
                 timeout = Number.isFinite(data.timeout) ? data.timeout : Infinity;
 
-            Object.assign(reqConfig, VMUtil._reqConfigDefaults, filtered);
+            Object.assign(reqConfig, VMUtil._reqConfigDefaults, normalized);
 
             if (typeof context !== "undefined") {
                 reqConfig.timeout = Util.clamp(Math.round(timeout), 0, context.timeRemaining);
@@ -205,6 +233,7 @@ let VMUtil = {
                 if (reqError == null) {
                     return resData;
                 } else {
+                    // eslint-disable-next-line no-restricted-syntax
                     throw new Error(`Request failed with status code ${resStatus}`);
                 }
             case VMHttpErrorTypes.value:

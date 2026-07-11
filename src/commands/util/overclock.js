@@ -140,32 +140,28 @@ class OverclockCommand {
         arguments: [
             {
                 name: "parts",
-                parser: "words"
-            },
-            {
-                name: "recipe",
-                from: "parts",
-                parser: parts => parseInput(parts)
+                kind: "list"
             }
         ]
     };
 
     handler(ctx) {
-        let split, recipe;
+        const parts = ctx.arg("parts");
+
+        if (Util.empty(parts)) {
+            return getErrorText(this);
+        }
+
+        let recipe;
 
         try {
-            split = ctx.arg("parts");
-            recipe = ctx.arg("recipe");
+            recipe = parseInput(parts);
         } catch (err) {
             if (err.name !== "ParserError") {
                 throw err;
             }
 
             return getParserErrorText(this, err);
-        }
-
-        if (Util.empty(split)) {
-            return getErrorText(this);
         }
 
         const outputs = OCUtil.overclock(recipe);

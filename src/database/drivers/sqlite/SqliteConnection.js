@@ -248,20 +248,20 @@ class SqliteConnection extends StatementDatabase(EventEmitter) {
     }
 
     async pragma(pragma, options = {}) {
-        const sql = RegexUtil.templateReplace(SqliteConnection.pragmaSql.run, { pragma });
-        const rows = await this.all(sql);
+        const sql = RegexUtil.templateReplace(SqliteConnection.pragmaSql.run, { pragma }),
+            rows = await this.all(sql);
 
         if (!options.simple) {
             return rows;
         }
 
-        const firstRow = rows?.[0];
+        const firstRow = Util.first(rows);
 
         if (typeof firstRow === "undefined" || typeof firstRow !== "object") {
             return undefined;
         }
 
-        const firstKey = Object.keys(firstRow)[0];
+        const firstKey = Util.first(Object.keys(firstRow));
         return firstRow[firstKey];
     }
 
@@ -723,7 +723,7 @@ class SqliteConnection extends StatementDatabase(EventEmitter) {
         }
 
         return {
-            param: args.length > 1 ? this._normalizeParam(args[0]) : [],
+            param: Util.multiple(args) ? this._normalizeParam(Util.first(args)) : [],
             callback
         };
     }

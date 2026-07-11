@@ -12,7 +12,9 @@ class CEvalCommand {
     }
 
     handler(ctx) {
-        return this.parentCmd.altevalBase(ctx.argsText, ctx.msg, 75);
+        return this.parentCmd.altevalBase(ctx.argsText, ctx.msg, 75, {
+            allowFilePath: this.parentCmd.canUseFilePath(ctx)
+        });
     }
 }
 

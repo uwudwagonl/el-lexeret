@@ -20,40 +20,35 @@ function printfTemplate(info) {
 }
 
 const fileFormat = [
-    "json",
-
     {
         name: "timestamp",
         opts: {
             format: "YYYY-MM-DD HH:mm:ss"
         }
     },
-
     {
         name: "errors",
         opts: {
             stack: true
         }
-    }
+    },
+    "json"
 ];
 
 const consoleFormat = [
     "colorize",
-
     {
         name: "timestamp",
         opts: {
             format: "YYYY-MM-DD HH:mm:ss"
         }
     },
-
     {
         name: "errors",
         opts: {
             stack: true
         }
     },
-
     {
         name: "printf",
         opts: printfTemplate

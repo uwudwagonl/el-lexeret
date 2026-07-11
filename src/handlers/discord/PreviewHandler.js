@@ -17,7 +17,7 @@ function logUsage(msg, str) {
     DiscordUtil.msgUrlRegex.lastIndex = 0;
 
     getLogger().info(
-        `Generating preview for "${str.match(DiscordUtil.msgUrlRegex)[0]}", issued by user ${msg.author.id} (${msg.author.username}) in channel ${msg.channel.id} (${DiscordUtil.formatChannelName(msg.channel)}).`
+        `Generating preview for "${Util.first(str.match(DiscordUtil.msgUrlRegex))}", issued by user ${msg.author.id} (${msg.author.username}) in channel ${msg.channel.id} (${DiscordUtil.formatChannelName(msg.channel)}).`
     );
 }
 
@@ -32,18 +32,18 @@ function logPreviewSending(preview) {
     }
 }
 
-function logGenerateTime(timeKey) {
+function logGenerateTime() {
     if (!getLogger().isDebugEnabled()) {
-        Benchmark.stopTiming(timeKey, null);
+        Benchmark.stopTiming("preview_generate", null);
         return;
     }
 
-    const elapsed = Benchmark.stopTiming(timeKey, false);
+    const elapsed = Benchmark.stopTiming("preview_generate", false);
     getLogger().debug(`Preview generation took ${Util.formatNumber(elapsed)} ms.`);
 }
 
-function logSendTime(timeKey) {
-    const elapsed = Benchmark.stopTiming(timeKey, false);
+function logSendTime() {
+    const elapsed = Benchmark.stopTiming("preview_send", false);
     getLogger().info(`Sending preview took ${Util.formatNumber(elapsed)} ms.`);
 }
 
@@ -78,7 +78,7 @@ class PreviewHandler extends MessageHandler {
         }
 
         logUsage(msg, str);
-        const timeKey = Benchmark.startTiming(Symbol("preview_generate"));
+        Benchmark.startTiming("preview_generate");
 
         const { sv_id, ch_id, msg_id } = match;
 
@@ -100,7 +100,7 @@ class PreviewHandler extends MessageHandler {
             let attach = prevMsg.attachments.first(),
                 attachType = "";
 
-            switch (Util.splitAt(attach.contentType, "/")[0]) {
+            switch (Util.first(Util.splitAt(attach.contentType, "/"))) {
                 case "image":
                     attachType = "Image";
                     image = attach.url;
@@ -146,7 +146,7 @@ class PreviewHandler extends MessageHandler {
                 text: `From ${channel}`
             });
 
-        logGenerateTime(timeKey);
+        logGenerateTime();
         return embed;
     }
 
@@ -156,24 +156,24 @@ class PreviewHandler extends MessageHandler {
         }
 
         let preview = null;
-        const timeKey = Benchmark.startTiming(Symbol("preview_send"));
+        Benchmark.startTiming("preview_send");
 
         try {
             preview = await this.generatePreview(msg, msg.content);
         } catch (err) {
             if (err.name !== "HandlerError") {
-                Benchmark.stopTiming(timeKey, null);
+                Benchmark.stopTiming("preview_send", null);
 
                 await this.replyWithError(msg, err, "preview", "generating preview");
                 return true;
             } else if (ignoredPreviewErrors.some(str => err.message.includes(str))) {
-                Benchmark.stopTiming(timeKey, null);
+                Benchmark.stopTiming("preview_send", null);
 
                 logGenerateCancelled(err.message);
                 return false;
             }
 
-            Benchmark.stopTiming(timeKey, null);
+            Benchmark.stopTiming("preview_send", null);
 
             getLogger().info(`${err.message}.`);
 
@@ -195,8 +195,8 @@ class PreviewHandler extends MessageHandler {
                 limitType: MessageLimitTypes.none
             }
         )
-            .then(() => logSendTime(timeKey))
-            .catch(() => Benchmark.stopTiming(timeKey, null));
+            .then(() => logSendTime())
+            .catch(() => Benchmark.stopTiming("preview_send", null));
 
         return true;
     }

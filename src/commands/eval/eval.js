@@ -1,16 +1,41 @@
+import { ScriptCommandType } from "../../parsers/command/type/index.js";
+
 import { getClient, getConfig, getEmoji } from "../../LevertClient.js";
 
-import ArrayUtil from "../../util/ArrayUtil.js";
 import Util from "../../util/Util.js";
+import ArrayUtil from "../../util/ArrayUtil.js";
 import DiscordUtil from "../../util/DiscordUtil.js";
-import ParserUtil from "../../util/commands/ParserUtil.js";
+import ObjectUtil from "../../util/ObjectUtil.js";
+import EmulationCommandUtil from "../../util/commands/EmulationCommandUtil.js";
 import getInspectorAttachOutput from "../../util/vm/getInspectorAttachOutput.js";
 
-async function evalBase(args, msg) {
+function formatPathError(err) {
+    return `${getEmoji(err.level)} ${err.message}.`;
+}
+
+async function evalBase(args, msg, options) {
+    options = ObjectUtil.guaranteeObject(options);
+
     let body = "";
 
     if (Util.empty(msg.attachments)) {
-        ({ body } = ParserUtil.parseScript(args));
+        const parsedBody = options.allowFilePath
+            ? await EmulationCommandUtil.resolveGuessedPathBody(args, {
+                  name: "script"
+              })
+            : {
+                  body: args,
+                  err: null
+              };
+
+        if (parsedBody.err !== null) {
+            return {
+                body: null,
+                err: formatPathError(parsedBody.err)
+            };
+        }
+
+        ({ body } = ScriptCommandType.parse(parsedBody.body));
     } else {
         try {
             ({ body } = await getClient().tagManager.downloadBody(null, msg, "eval"));
@@ -38,8 +63,8 @@ async function evalBase(args, msg) {
         : { body, err: null };
 }
 
-async function altevalBase(args, msg, lang) {
-    const parsed = await evalBase(args, msg),
+async function altevalBase(args, msg, lang, options) {
+    const parsed = await evalBase(args, msg, options),
         body = parsed.body;
 
     if (parsed.err !== null) {
@@ -113,7 +138,19 @@ class EvalCommand {
     static info = {
         name: "eval",
         aliases: ["e", "exec"],
-        subcommands: ["c", "cpp", "py", "vm2", "langs"]
+        subcommands: ["c", "cpp", "py", "vm2", "langs"],
+        arguments: [
+            {
+                name: "debug",
+                kind: "option",
+                type: "boolean",
+                syntax: "both"
+            },
+            {
+                name: "script",
+                kind: "rest"
+            }
+        ]
     };
 
     load() {
@@ -135,28 +172,25 @@ class EvalCommand {
         }
     }
 
-    async evalBase(args, msg) {
-        return await evalBase(args, msg);
+    async evalBase(args, msg, options) {
+        return await evalBase(args, msg, options);
     }
 
-    async altevalBase(args, msg, lang) {
-        return await altevalBase(args, msg, lang);
+    async altevalBase(args, msg, lang, options) {
+        return await altevalBase(args, msg, lang, options);
+    }
+
+    canUseFilePath(ctx) {
+        return getClient().permManager.allowed(ctx.perm, "admin");
     }
 
     async handler(ctx) {
-        let debug = false,
-            argsText = ctx.argsText;
+        const debug = (ctx.arg("debug") ?? false) && (getClient().tagVM?.enableUserInspector ?? false),
+            argsText = ctx.arg("script") ?? "";
 
-        if (getClient().tagVM?.enableUserInspector) {
-            const [flag, rest] = ParserUtil.splitArgs(ctx.argsText, true);
-
-            if (flag === "debug") {
-                debug = true;
-                argsText = rest;
-            }
-        }
-
-        const parsed = await this.evalBase(argsText, ctx.msg),
+        const parsed = await this.evalBase(argsText, ctx.msg, {
+                allowFilePath: this.canUseFilePath(ctx)
+            }),
             body = parsed.body;
 
         if (parsed.err !== null) {

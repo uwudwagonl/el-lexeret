@@ -117,6 +117,19 @@ describe("DBImporter", () => {
         await expect(importer.updateDatabase("tags.json", "bad")).rejects.toThrow("Invalid update mode");
     });
 
+    test("parses a script tag properly via _parseTag", () => {
+        const data = {
+            name: "test_script",
+            body: "```js\nconsole.log(1)\n```"
+        };
+
+        const tag = DBImporter._parseTag(data);
+        expect(tag.name).toBe("test_script");
+        expect(tag.body).toBe("console.log(1)");
+        expect(tag.isScript).toBe(true);
+        expect(tag.getScriptLanguage()).toBe("js");
+    });
+
     test("fix delegates database refresh to the public vacuum api", async () => {
         const importer = Object.create(DBImporter.prototype, {
             _fixQuotas: {
@@ -165,7 +178,8 @@ describe("DBImporter", () => {
             await liveRuntime.client.tagManager.execute(await liveRuntime.client.tagManager.fetch("delta"), "");
             await liveRuntime.client.tagManager.delete(await liveRuntime.client.tagManager.fetch("delta"));
 
-            await liveRuntime.client.tagManager.tag_db.db.run("DELETE FROM Quotas WHERE 1=1;");
+            await liveRuntime.client.tagManager.tag_db.db.run("PRAGMA foreign_keys = OFF;");
+            await liveRuntime.client.tagManager.tag_db.db.run("UPDATE Quotas SET quota = 999.0, count = 999;");
             await liveRuntime.client.tagManager.tag_db.db.run(
                 "INSERT INTO Quotas (user, quota, count) VALUES ($user, $quota, $count);",
                 {
@@ -184,7 +198,7 @@ describe("DBImporter", () => {
 
             await importer.fix();
 
-            expect(await liveRuntime.client.tagManager.tag_db.quotaFetch("ghost")).toBeNull();
+            expect(await liveRuntime.client.tagManager.tag_db.quotaFetchAll("ghost")).toBeNull();
             expect(await liveRuntime.client.tagManager.tag_db.quotaCountFetch("u1")).toBe(2);
             expect(await liveRuntime.client.tagManager.tag_db.quotaCountFetch("u2")).toBe(1);
             expect(await liveRuntime.client.tagManager.tag_db.quotaCountFetch("u3")).toBeNull();

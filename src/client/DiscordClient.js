@@ -28,9 +28,37 @@ const {
     Guild,
     GuildMember,
     BaseChannel,
+    TextChannel,
     Message,
-    User
+    User,
+    Role
 } = discord;
+
+function normalizeAttachments(attachments) {
+    attachments = ArrayUtil.guaranteeArray(attachments).filter(item => item != null);
+
+    return attachments.map((attach, i) =>
+        TypeTester.isObject(attach)
+            ? {
+                  id: String(attach.id ?? i),
+                  filename: attach.filename ?? attach.name ?? `file-${i}`,
+                  content_type: attach.content_type ?? attach.contentType,
+                  proxy_url: attach.proxy_url ?? attach.proxyURL ?? attach.url,
+                  ...attach
+              }
+            : {
+                  id: String(i),
+                  filename: `file-${i}`,
+                  url: String(attach)
+              }
+    );
+}
+
+function normalizeEmbeds(embeds) {
+    return ArrayUtil.guaranteeArray(embeds)
+        .filter(item => item != null)
+        .map(embed => DiscordUtil.getBuiltEmbed(embed));
+}
 
 class DiscordClient {
     static defaultIntents = [
@@ -90,6 +118,129 @@ class DiscordClient {
     static defaultUsersFetchOptions = {
         limit: 50
     };
+
+    static emulatableUserFields = Object.freeze([
+        Object.freeze({
+            name: "id",
+            type: "string"
+        }),
+        Object.freeze({
+            name: "username",
+            type: "string"
+        }),
+        Object.freeze({
+            name: "globalName",
+            type: "string"
+        }),
+        Object.freeze({
+            name: "bot",
+            type: "boolean"
+        })
+    ]);
+
+    static emulatableGuildFields = Object.freeze([
+        Object.freeze({
+            name: "id",
+            type: "string"
+        }),
+        Object.freeze({
+            name: "name",
+            type: "string"
+        })
+    ]);
+
+    static emulatableChannelFields = Object.freeze([
+        Object.freeze({
+            name: "id",
+            type: "string"
+        }),
+        Object.freeze({
+            name: "type",
+            type: "number"
+        }),
+        Object.freeze({
+            name: "name",
+            type: "string"
+        }),
+        Object.freeze({
+            name: "lastMessageId",
+            type: "string"
+        })
+    ]);
+
+    static emulatableMemberFields = Object.freeze([
+        Object.freeze({
+            name: "id",
+            type: "string"
+        }),
+        Object.freeze({
+            name: "nick",
+            type: "string"
+        }),
+        Object.freeze({
+            name: "roles",
+            type: "array"
+        })
+    ]);
+
+    static emulatableMessageDataFields = Object.freeze([
+        Object.freeze({
+            name: "id",
+            type: "string"
+        }),
+        Object.freeze({
+            name: "type",
+            type: "number"
+        }),
+        Object.freeze({
+            name: "reactions",
+            type: "array"
+        }),
+        Object.freeze({
+            name: "attachments",
+            type: "array"
+        }),
+        Object.freeze({
+            name: "embeds",
+            type: "array"
+        }),
+        Object.freeze({
+            name: "mentions",
+            type: "any"
+        })
+    ]);
+
+    static emulatableMessageFields = Object.freeze([
+        Object.freeze({
+            name: "message",
+            type: "object",
+            cliPrefix: "msg",
+            fields: this.emulatableMessageDataFields
+        }),
+        Object.freeze({
+            name: "author",
+            type: "object",
+            cliPrefix: "author",
+            fields: this.emulatableUserFields
+        }),
+        Object.freeze({
+            name: "guild",
+            type: "object",
+            cliPrefix: "guild",
+            fields: this.emulatableGuildFields
+        }),
+        Object.freeze({
+            name: "channel",
+            type: "object",
+            cliPrefix: "channel",
+            fields: this.emulatableChannelFields
+        }),
+        Object.freeze({
+            name: "member",
+            type: "object",
+            fields: this.emulatableMemberFields
+        })
+    ]);
 
     constructor(intents, partials) {
         this.intents = intents ?? DiscordClient.defaultIntents;
@@ -382,6 +533,261 @@ class DiscordClient {
         return message;
     }
 
+    async emulateUser(user_id, override) {
+        override = ObjectUtil.guaranteeObject(override);
+        user_id = override.id ?? user_id ?? "0";
+
+        if (Util.empty(Object.keys(override)) && user_id !== "0") {
+            try {
+                const user = await this.findUserById(user_id);
+
+                if (user !== null) {
+                    return user;
+                }
+            } catch (err) {}
+        }
+
+        return new User(this.client, {
+            id: user_id,
+            username: override.username ?? "dummy-user",
+            global_name: override.globalName ?? null,
+            discriminator: "0",
+            bot: override.bot ?? false
+        });
+    }
+
+    async emulateGuild(sv_id, override) {
+        override = ObjectUtil.guaranteeObject(override);
+        sv_id = override.id ?? sv_id ?? "0";
+
+        if (Util.empty(Object.keys(override)) && sv_id !== "0") {
+            try {
+                const guild = await this.fetchGuild(sv_id);
+
+                if (guild !== null) {
+                    return guild;
+                }
+            } catch (err) {}
+        }
+
+        const guild = new Guild(this.client, {
+            id: sv_id,
+            name: override.name ?? "dummy-guild"
+        });
+
+        const everyoneRole = new Role(
+            this.client,
+            {
+                id: sv_id,
+                name: "@everyone",
+                color: 0,
+                hoist: false,
+                position: 0,
+                permissions: 0n,
+                managed: false,
+                mentionable: false,
+                colors: {
+                    primary_color: 0,
+                    secondary_color: null,
+                    tertiary_color: null
+                }
+            },
+            guild
+        );
+
+        guild.roles.cache.set(sv_id, everyoneRole);
+
+        return guild;
+    }
+
+    async emulateMember(user_id, sv_id, guild, override) {
+        override = ObjectUtil.guaranteeObject(override);
+        user_id = override.id ?? user_id ?? "0";
+
+        if (Util.empty(Object.keys(override)) && user_id !== "0" && sv_id !== "0") {
+            try {
+                const member = await this.fetchMember(sv_id, user_id);
+
+                if (member !== null) {
+                    return member;
+                }
+            } catch (err) {}
+        }
+
+        const userOverride = ObjectUtil.guaranteeObject(override.user),
+            memberOverride = override;
+
+        const user = await this.emulateUser(user_id, userOverride);
+
+        for (const roleId of memberOverride.roles ?? []) {
+            if (guild.roles.cache.has(roleId)) {
+                continue;
+            }
+
+            guild.roles.cache.set(
+                roleId,
+                new Role(
+                    this.client,
+                    {
+                        id: roleId,
+                        name: roleId,
+                        color: 0,
+                        hoist: false,
+                        position: 0,
+                        permissions: 0n,
+                        managed: false,
+                        mentionable: false,
+                        colors: {
+                            primary_color: 0,
+                            secondary_color: null,
+                            tertiary_color: null
+                        }
+                    },
+                    guild
+                )
+            );
+        }
+
+        const member = new GuildMember(
+            this.client,
+            {
+                nick: memberOverride.nick ?? null,
+                roles: memberOverride.roles ?? []
+            },
+            guild
+        );
+
+        member.user = user;
+        member.nick = memberOverride.nick ?? null;
+        member.nickname = memberOverride.nick ?? null;
+
+        if (!this.client.guilds.cache.has(guild.id)) {
+            guild.members.cache.set(user_id, member);
+        }
+
+        return member;
+    }
+
+    async emulateChannel(ch_id, guild, override) {
+        override = ObjectUtil.guaranteeObject(override);
+        ch_id = override.id ?? ch_id ?? "0";
+
+        if (Util.empty(Object.keys(override)) && ch_id !== "0") {
+            try {
+                const channel = await this.fetchChannel(ch_id);
+
+                if (channel !== null) {
+                    return channel;
+                }
+            } catch (err) {}
+        }
+
+        const channel = new TextChannel(
+            guild,
+            {
+                id: ch_id,
+                type: override.type ?? ChannelType.GuildText,
+                name: override.name ?? "dummy-channel",
+                guild_id: guild.id,
+                last_message_id: override.lastMessageId ?? null
+            },
+            this.client
+        );
+
+        if (!this.client.guilds.cache.has(guild.id)) {
+            guild.channels.cache.set(ch_id, channel);
+        }
+
+        return channel;
+    }
+
+    async emulateMessage(content, override) {
+        override = ObjectUtil.guaranteeObject(override);
+
+        const messageOverride = ObjectUtil.guaranteeObject(override.message),
+            guildOverride = ObjectUtil.guaranteeObject(override.guild),
+            channelOverride = ObjectUtil.guaranteeObject(override.channel),
+            authorOverride = ObjectUtil.guaranteeObject(override.author),
+            memberOverride = ObjectUtil.guaranteeObject(override.member),
+            user_id = authorOverride.id ?? this.owner ?? "0",
+            sv_id = guildOverride.id ?? "0",
+            ch_id = channelOverride.id ?? "0";
+
+        const guild = await this.emulateGuild(sv_id, guildOverride),
+            channel = await this.emulateChannel(ch_id, guild, channelOverride),
+            member = await this.emulateMember(user_id, guild.id, guild, {
+                ...memberOverride,
+                user: authorOverride
+            });
+
+        content = content ?? "";
+
+        const embeds = normalizeEmbeds(messageOverride.embeds),
+            attachments = normalizeAttachments(messageOverride.attachments),
+            msg_id = messageOverride.id ?? DiscordUtil.snowflakeFromDate(new Date()),
+            type = messageOverride.type ?? 0,
+            reactions = messageOverride.reactions ?? [],
+            mentionOverrides = ObjectUtil.guaranteeObject(messageOverride.mentions),
+            mentionUsers = ArrayUtil.guaranteeArray(mentionOverrides.users, undefined, true),
+            mentionRoles = ArrayUtil.guaranteeArray(mentionOverrides.roles, undefined, true),
+            mentionChannels = ArrayUtil.guaranteeArray(mentionOverrides.channels, undefined, true),
+            mentionEveryone = mentionOverrides.everyone ?? false,
+            referencedMessage =
+                mentionOverrides.repliedUser == null
+                    ? null
+                    : {
+                          author: mentionOverrides.repliedUser
+                      };
+
+        const message = new Message(this.client, {
+            id: msg_id,
+            channel_id: channel.id,
+            guild_id: guild.id,
+            content,
+            author: member.user,
+            type,
+            embeds,
+            components: [],
+            attachments,
+            reactions,
+            mentions: mentionUsers,
+            mention_roles: mentionRoles,
+            mention_everyone: mentionEveryone,
+            mention_channels: mentionChannels,
+            ...(referencedMessage === null
+                ? {}
+                : {
+                      referenced_message: referencedMessage
+                  })
+        });
+
+        message.author = member.user;
+        message.reactions = reactions;
+
+        Object.defineProperty(message, "channel", {
+            get() {
+                return channel;
+            },
+            configurable: true
+        });
+
+        Object.defineProperty(message, "guild", {
+            get() {
+                return guild;
+            },
+            configurable: true
+        });
+
+        Object.defineProperty(message, "member", {
+            get() {
+                return member;
+            },
+            configurable: true
+        });
+
+        return message;
+    }
+
     async fetchMessages(ch_id, options, fetchOptions) {
         options = ObjectUtil.guaranteeObject(options);
         ObjectUtil.setValuesWithDefaults(options, options, this.constructor.defaultMessagesOptions);
@@ -397,7 +803,8 @@ class DiscordClient {
         fetchOptions.force = !options.cache;
 
         {
-            const parseAsMessage = msg_id => this._parseDiscordId(msg_id, "message", Message, false)[0] ?? undefined;
+            const parseAsMessage = msg_id =>
+                Util.first(this._parseDiscordId(msg_id, "message", Message, false)) ?? undefined;
 
             fetchOptions.before = parseAsMessage(fetchOptions.before);
             fetchOptions.after = parseAsMessage(fetchOptions.after);

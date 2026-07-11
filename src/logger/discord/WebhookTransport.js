@@ -4,6 +4,7 @@ import BaseDiscordTransport from "./BaseDiscordTransport.js";
 
 import Util from "../../util/Util.js";
 import TypeTester from "../../util/TypeTester.js";
+import ObjectUtil from "../../util/ObjectUtil.js";
 
 import LoggerError from "../../errors/LoggerError.js";
 
@@ -11,12 +12,13 @@ class WebhookTransport extends BaseDiscordTransport {
     static $name = "discord.webhook";
 
     constructor(options) {
+        options = ObjectUtil.guaranteeObject(options);
         super(options);
 
-        let webhook = this.options.webhook;
+        let webhook = options.webhook;
 
         if (!TypeTester.isObject(webhook)) {
-            webhook = this._getWebhook(this.options.url);
+            webhook = this._getWebhook(options.url);
         } else {
             this.webhookUrl = webhook.url;
             this.webhookId = webhook.id;

@@ -11,12 +11,12 @@ class TagRandomCommand {
         arguments: [
             {
                 name: "prefix",
-                parser: "split",
+                kind: "positional",
                 index: 0
             },
             {
                 name: "tagArgs",
-                parser: "split",
+                kind: "positional",
                 index: 1
             }
         ]

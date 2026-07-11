@@ -93,7 +93,7 @@ function formatSearchResults(command, results, ranges, n, discord) {
         const idx = Util.single(results) ? "-" : `${i + 1}.`;
 
         if (discord) {
-            const cmd = `${command.prefix}${command.parentCmd.aliases[0]}`;
+            const cmd = `${command.prefix}${Util.first(command.parentCmd.aliases)}`;
             return `${idx} ${cmd} **${tag.name}**\n${snippet}`;
         }
 
@@ -117,20 +117,21 @@ class TagFullSearchCommand {
         arguments: [
             {
                 name: "query",
-                parser: "split",
+                kind: "positional",
                 index: 0,
-                lowercase: [true, true]
+                lowercase: true
             },
             {
                 name: "resultText",
-                parser: "split",
+                kind: "positional",
                 index: 1,
-                lowercase: [true, true]
+                lowercase: true
             },
             {
                 name: "queryBody",
                 from: "query",
-                parser: "script"
+                kind: "rest",
+                type: "script"
             }
         ]
     };
@@ -140,7 +141,7 @@ class TagFullSearchCommand {
             return `${getEmoji("info")} ${this.getArgsHelp("query [all/max_results]")}`;
         }
 
-        let query = ctx.arg("queryBody"),
+        let query = ctx.arg("queryBody")?.body ?? "",
             m_text = ctx.arg("resultText"),
             all = m_text === "all";
 

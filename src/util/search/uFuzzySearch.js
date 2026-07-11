@@ -1,6 +1,5 @@
 import uFuzzy from "@leeoniya/ufuzzy";
 
-import Util from "../Util.js";
 import ArrayUtil from "../ArrayUtil.js";
 import ObjectUtil from "../ObjectUtil.js";
 
@@ -25,14 +24,14 @@ function uFuzzySearch(haystack, needle, options) {
         searchKey = options.searchKey,
         infoThresh = options.infoThresh ?? 1000;
 
-    if (Util.empty(haystack)) {
+    if (haystack.length < 1) {
         return outputResult([], [], false);
     }
 
     const searchHaystack = searchKey == null ? haystack : haystack.map(x => x[searchKey]),
         inds = uf.filter(searchHaystack, needle);
 
-    if (inds === null || Util.empty(inds)) {
+    if (inds === null || inds.length < 1) {
         return outputResult([], [], false);
     }
 

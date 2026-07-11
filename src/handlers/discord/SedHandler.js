@@ -8,10 +8,11 @@ import { getClient, getEmoji, getLogger } from "../../LevertClient.js";
 
 import Util from "../../util/Util.js";
 import DiscordUtil from "../../util/DiscordUtil.js";
-import ParserUtil from "../../util/commands/ParserUtil.js";
 import RegexUtil from "../../util/misc/RegexUtil.js";
 import LoggerUtil from "../../util/LoggerUtil.js";
 import Benchmark from "../../util/misc/Benchmark.js";
+
+import { ScriptCommandType } from "../../parsers/command/type/index.js";
 
 import HandlerError from "../../errors/HandlerError.js";
 
@@ -32,18 +33,18 @@ function logSedSending(sed) {
     }
 }
 
-function logGenerateTime(timeKey) {
+function logGenerateTime() {
     if (!getLogger().isDebugEnabled()) {
-        Benchmark.stopTiming(timeKey, null);
+        Benchmark.stopTiming("sed_generate", null);
         return;
     }
 
-    const elapsed = Benchmark.stopTiming(timeKey, false);
+    const elapsed = Benchmark.stopTiming("sed_generate", false);
     getLogger().debug(`Sed generation took ${Util.formatNumber(elapsed)} ms.`);
 }
 
-function logSendTime(timeKey) {
-    const elapsed = Benchmark.stopTiming(timeKey, false);
+function logSendTime() {
+    const elapsed = Benchmark.stopTiming("sed_send", false);
     getLogger().info(`Sending replaced message took ${Util.formatNumber(elapsed)} ms.`);
 }
 
@@ -69,7 +70,7 @@ class SedHandler extends MessageHandler {
 
     async generateSed(msg, str) {
         logUsage(msg);
-        const timeKey = Benchmark.startTiming(Symbol("sed_generate"));
+        Benchmark.startTiming("sed_generate");
 
         SedHandler.sedRegex.lastIndex = 0;
         const matches = Array.from(str.matchAll(SedHandler.sedRegex));
@@ -90,9 +91,9 @@ class SedHandler extends MessageHandler {
             }
 
             let { regex_text: regexText, replace, flags_text: flagsText } = match.groups;
-            regexText = ParserUtil.parseScript(regexText || "").body.replaceAll("\\/", "/");
-            replace = ParserUtil.parseScript(replace || "").body.replaceAll("\\/", "/");
-            flagsText = ParserUtil.parseScript(flagsText || SedHandler.defaultFlags).body.toLowerCase();
+            regexText = ScriptCommandType.parse(regexText || "").body.replaceAll("\\/", "/");
+            replace = ScriptCommandType.parse(replace || "").body.replaceAll("\\/", "/");
+            flagsText = ScriptCommandType.parse(flagsText || SedHandler.defaultFlags).body.toLowerCase();
 
             if (!RegexUtil.validFlags(flagsText)) {
                 throw new HandlerError("Invalid regex flags", {
@@ -166,7 +167,7 @@ class SedHandler extends MessageHandler {
                 text: `From ${channel}`
             });
 
-        logGenerateTime(timeKey);
+        logGenerateTime();
         return embed;
     }
 
@@ -175,7 +176,7 @@ class SedHandler extends MessageHandler {
             return false;
         }
 
-        const timeKey = Benchmark.startTiming(Symbol("sed_send"));
+        Benchmark.startTiming("sed_send");
 
         let sed = null;
 
@@ -184,17 +185,17 @@ class SedHandler extends MessageHandler {
         } catch (err) {
             if (err.name !== "HandlerError") {
                 const out = `generating ${bold("sed")} replace`;
-                Benchmark.stopTiming(timeKey, null);
+                Benchmark.stopTiming("sed_send", null);
                 await this.replyWithError(msg, err, "sed", out);
 
                 return true;
             } else if (err.message.startsWith("Invalid input")) {
-                Benchmark.stopTiming(timeKey, null);
+                Benchmark.stopTiming("sed_send", null);
                 logGenerateCancelled(err.message);
                 return false;
             }
 
-            Benchmark.stopTiming(timeKey, null);
+            Benchmark.stopTiming("sed_send", null);
             getLogger().info(`${err.message}.`);
 
             const emoji = getEmoji(err.message.startsWith("No matching") ? "error" : "warn"),
@@ -219,8 +220,8 @@ class SedHandler extends MessageHandler {
                 limitType: MessageLimitTypes.trim
             }
         )
-            .then(() => logSendTime(timeKey))
-            .catch(() => Benchmark.stopTiming(timeKey, null));
+            .then(() => logSendTime())
+            .catch(() => Benchmark.stopTiming("sed_send", null));
 
         return true;
     }

@@ -3,7 +3,7 @@ import { inlineCode } from "discord.js";
 import BaseCommandManager from "./BaseCommandManager.js";
 
 import TextCommand from "../../structures/command/TextCommand.js";
-import CommandParser from "../../parsers/CommandParser.js";
+import CommandParser from "../../parsers/command/CommandParser.js";
 
 import Util from "../../util/Util.js";
 
@@ -31,11 +31,7 @@ class TextCommandManager extends BaseCommandManager {
             return [null, "", "", null];
         }
 
-        const content = this._getCommandContent(str, ...etc),
-            parsed = new CommandParser({
-                content,
-                raw: str
-            }).parse();
+        const parsed = CommandParser.parseInvocation(str, this.commandPrefix);
 
         if (parsed === null) {
             return [null, "", "", null];

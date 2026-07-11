@@ -26,14 +26,9 @@ async function seedConfigRoot(overrides = {}) {
         ...JSON.parse(await fs.readFile(path.join(repoRoot, "config/reactions.json"), "utf8")),
         ...(overrides.reactions ?? {})
     };
-    const auth = {
-        ...JSON.parse(await fs.readFile(path.join(repoRoot, "config/auth.json"), "utf8")),
-        ...(overrides.auth ?? {})
-    };
 
     await fs.writeFile(path.join(tempRoot, "config/config.json"), JSON.stringify(config, null, 4));
     await fs.writeFile(path.join(tempRoot, "config/reactions.json"), JSON.stringify(reactions, null, 4));
-    await fs.writeFile(path.join(tempRoot, "config/auth.json"), JSON.stringify(auth, null, 4));
 }
 
 beforeEach(async () => {
@@ -56,12 +51,12 @@ describe("loadConfig", () => {
         globalThis.projRootUrl = pathToFileURL(tempRoot).href;
 
         vi.resetModules();
-        const { default: loadConfig } = await import("../../src/config/loadConfig.js");
+        const { loadConfig } = await import("../../src/config/loadConfig.js");
 
         const out = await loadConfig(console);
         expect(out).toHaveProperty("config");
         expect(out).toHaveProperty("reactions");
-        expect(out).toHaveProperty("auth");
+        expect(out).not.toHaveProperty("auth");
     });
 
     test("returns null when a real loader fails", async () => {
@@ -74,7 +69,7 @@ describe("loadConfig", () => {
         globalThis.projRootUrl = pathToFileURL(tempRoot).href;
 
         vi.resetModules();
-        const { default: loadConfig } = await import("../../src/config/loadConfig.js");
+        const { loadConfig } = await import("../../src/config/loadConfig.js");
 
         await expect(loadConfig(console)).resolves.toBeNull();
     });

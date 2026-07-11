@@ -439,7 +439,7 @@ let DiscordUtil = {
                     const part = str.slice(i, i + length);
 
                     if (part === pattern) {
-                        const hasContentAfter = !Util.empty(part.trim());
+                        const hasContentAfter = part.trim().length > 0;
 
                         if (hasContentAfter) {
                             stack[stack.length - 1] === pattern ? stack.pop() : stack.push(pattern);

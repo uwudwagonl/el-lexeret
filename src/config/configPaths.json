@@ -4,5 +4,6 @@
     "encoding": "utf-8",
     "config": "config.json",
     "reactions": "reactions.json",
-    "auth": "auth.json"
+    "auth": "auth.json",
+    "authEnv": "auth.env"
 }

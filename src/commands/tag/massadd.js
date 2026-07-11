@@ -4,6 +4,7 @@ import path from "node:path";
 import { getClient, getEmoji, getLogger } from "../../LevertClient.js";
 
 import Util from "../../util/Util.js";
+import FileUtil from "../../util/misc/FileUtil.js";
 
 class TagMassAddCommand {
     static info = {
@@ -14,24 +15,24 @@ class TagMassAddCommand {
         arguments: [
             {
                 name: "tagPrefix",
-                parser: "split",
+                kind: "positional",
                 index: 0
             },
             {
                 name: "rest",
-                parser: "split",
+                kind: "positional",
                 index: 1
             },
             {
                 name: "owner",
                 from: "rest",
-                parser: "split",
+                kind: "positional",
                 index: 0
             },
             {
                 name: "inputDir",
                 from: "rest",
-                parser: "split",
+                kind: "positional",
                 index: 1
             }
         ]
@@ -55,7 +56,7 @@ class TagMassAddCommand {
             }
         }
 
-        inputDir = path.resolve(projRoot, inputDir);
+        inputDir = FileUtil.resolve(inputDir);
 
         let files = await fs.readdir(inputDir, { withFileTypes: true });
         files = files.filter(item => item.isFile());

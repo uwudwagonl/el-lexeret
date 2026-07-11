@@ -1,4 +1,7 @@
-import { afterEach, beforeEach, describe, expect, test } from "vitest";
+import dns from "node:dns";
+import net from "node:net";
+
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import "../../../setupGlobals.js";
 
@@ -241,6 +244,63 @@ describe("TagVM", () => {
                 { msg }
             )
         ).resolves.toBe("display-alpha:role-1");
+    });
+
+    test("sanitizes malformed http request config through the real vm helper path", async () => {
+        const msg = createDiscordMessage("hello"),
+            lookupSpy = vi.spyOn(dns, "lookup"),
+            originalConnect = net.Socket.prototype.connect,
+            socketConnectSpy = vi.spyOn(net.Socket.prototype, "connect");
+
+        lookupSpy.mockImplementation((hostname, options, callback) => {
+            if (hostname === "safe.com") {
+                process.nextTick(() => {
+                    if (options.all) {
+                        callback(null, [{ address: "9.9.9.9", family: 4 }]);
+                    } else {
+                        callback(null, "9.9.9.9", 4);
+                    }
+                });
+            } else {
+                process.nextTick(() => {
+                    callback(new Error("Not found"));
+                });
+            }
+        });
+
+        socketConnectSpy.mockImplementation(function (options, cb) {
+            const result = originalConnect.call(this, options, cb);
+            setTimeout(() => {
+                this.destroy(new Error("Connection allowed"));
+            }, 50);
+            return result;
+        });
+
+        try {
+            await expect(
+                vm.runScript(
+                    `(async () => (await http.request({
+                        url: "http://safe.com/a/",
+                        method: true,
+                        headers: true,
+                        params: true,
+                        data: {},
+                        auth: true,
+                        responseType: true,
+                        responseEncoding: true,
+                        proxy: true,
+                        decompress: "yes",
+                        maxRedirects: "lots",
+                        validateStatus: true,
+                        errorType: "value"
+                    })).error.message)()`,
+                    { msg }
+                )
+            ).resolves.toContain("Connection allowed");
+        } finally {
+            lookupSpy.mockRestore();
+            socketConnectSpy.mockRestore();
+        }
     });
 
     test("processes reply payloads and mapped VM error branches directly", () => {

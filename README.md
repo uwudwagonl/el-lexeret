@@ -66,15 +66,12 @@ git reset --soft origin/main
 
 - [ ] Extract responses into a lang file
 - [ ] Rewrite vm2 runner
-- [ ] Finish CLI commands
 - [ ] Add cabal (banning)
 - [ ] Add the option to save tag attachments locally
 - [ ] Add support for slash commands (perhaps)
 - [ ] Add support for other databases
 - [ ] Add support for reading the token from environment variables
-- [ ] Add tag usage stats (and more tag counts)
 - [ ] Add caching
-- [ ] Add websocket API
 - [ ] Add different behaviour when replying to messages
 
 # Commands

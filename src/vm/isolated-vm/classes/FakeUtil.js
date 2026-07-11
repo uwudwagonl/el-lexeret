@@ -170,6 +170,7 @@ const FakeUtil = Object.freeze({
         const tag = await getClient().tagManager.fetch(name);
 
         if (tag === null) {
+            // eslint-disable-next-line no-restricted-syntax
             throw new Error(`Tag ${name} doesn't exist`);
         }
 
@@ -189,6 +190,7 @@ const FakeUtil = Object.freeze({
         const tag = $0.applySyncPromise(undefined, [name, args], options);
 
         if (tag === null) {
+            // eslint-disable-next-line no-restricted-syntax
             throw new Error(`Tag ${name} doesn't exist`);
         } else if (!tag.isScript) {
             return tag.body;
@@ -218,6 +220,7 @@ const FakeUtil = Object.freeze({
         const tag = await $0.applySyncPromise(undefined, [name, args], options);
 
         if (tag === null) {
+            // eslint-disable-next-line no-restricted-syntax
             throw new Error(`Tag ${name} doesn't exist`);
         }
 

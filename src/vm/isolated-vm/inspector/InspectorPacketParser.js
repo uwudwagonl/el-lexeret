@@ -1,26 +1,11 @@
 import TypeTester from "../../../util/TypeTester.js";
+import ObjectUtil from "../../../util/ObjectUtil.js";
 
-class InspectorPacketHandler {
-    handle(_parser, _packet) {}
-}
-
-class InspectorActionPacketHandler extends InspectorPacketHandler {
-    handle(parser) {
-        parser.resetActionTimeout();
-    }
-}
-
-class InspectorPausedPacketHandler extends InspectorPacketHandler {
-    handle(parser) {
-        parser.startActionTimeout();
-    }
-}
-
-class InspectorResumedPacketHandler extends InspectorPacketHandler {
-    handle(parser) {
-        parser.clearActionTimeout();
-    }
-}
+import {
+    InspectorActionPacketHandler,
+    InspectorPausedPacketHandler,
+    InspectorResumedPacketHandler
+} from "./InspectorPacketHandlers.js";
 
 class InspectorPacketParser {
     static incomingHandlers = new Map(
@@ -40,9 +25,9 @@ class InspectorPacketParser {
     ]);
 
     constructor(session, options) {
-        options = TypeTester.isObject(options) ? options : {};
+        options = ObjectUtil.guaranteeObject(options);
 
-        this.session = session;
+        this.session = session ?? null;
         this.options = options;
     }
 
@@ -66,22 +51,6 @@ class InspectorPacketParser {
         this.session?.clearActionTimeout();
     }
 
-    _parsePacket(msg, handlers) {
-        const packet = this._getPacket(msg);
-
-        if (packet === null) {
-            return false;
-        }
-
-        const method = packet.method;
-
-        if (typeof method === "string") {
-            handlers.get(method)?.handle(this, packet);
-        }
-
-        return true;
-    }
-
     _getPacket(msg) {
         if (msg instanceof Buffer) {
             msg = msg.toString("utf-8");
@@ -97,6 +66,22 @@ class InspectorPacketParser {
         } catch (err) {
             return null;
         }
+    }
+
+    _parsePacket(msg, handlers) {
+        const packet = this._getPacket(msg);
+
+        if (packet === null) {
+            return false;
+        }
+
+        const method = packet.method;
+
+        if (typeof method === "string") {
+            handlers.get(method)?.handle(this, packet);
+        }
+
+        return true;
     }
 }
 

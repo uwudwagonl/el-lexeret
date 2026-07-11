@@ -3,10 +3,10 @@ import path from "node:path";
 import DirectoryLoader from "../DirectoryLoader.js";
 import QueryFileLoader from "./QueryFileLoader.js";
 
+import Util from "../../util/Util.js";
 import ArrayUtil from "../../util/ArrayUtil.js";
 import TypeTester from "../../util/TypeTester.js";
 import ObjectUtil from "../../util/ObjectUtil.js";
-import Util from "../../util/Util.js";
 
 import { LoadStatus } from "../LoadStatus.js";
 
@@ -120,7 +120,7 @@ class QueryLoader extends DirectoryLoader {
         const relativePath = path.relative(this.dirPath, filePath),
             parsed = path.parse(relativePath);
 
-        return parsed.dir === "" && `${parsed.name}${parsed.ext}` === this.createFilename;
+        return Util.empty(parsed.dir) && `${parsed.name}${parsed.ext}` === this.createFilename;
     }
 
     _getCategoryName(filePath) {

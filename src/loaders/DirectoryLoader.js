@@ -8,6 +8,7 @@ import FileLoader from "./FileLoader.js";
 import Util from "../util/Util.js";
 import ObjectUtil from "../util/ObjectUtil.js";
 import ArrayUtil from "../util/ArrayUtil.js";
+import FileUtil from "../util/misc/FileUtil.js";
 
 import { LoadStatus } from "./LoadStatus.js";
 
@@ -84,7 +85,7 @@ class DirectoryLoader extends Loader {
         this._logName = this.name || "file";
 
         this.maxDepth = options.maxDepth ?? Infinity;
-        this.excludeDirs = (options.excludeDirs ?? []).map(dir => path.resolve(projRoot, dir));
+        this.excludeDirs = (options.excludeDirs ?? []).map(dir => FileUtil.resolve(dir));
         this.fileExtension = options.fileExtension ?? "any";
 
         this.fileLoaderClass = options.fileLoaderClass ?? FileLoader;
@@ -92,7 +93,7 @@ class DirectoryLoader extends Loader {
     }
 
     set dirPath(val) {
-        this._dirPath = typeof val === "string" ? path.resolve(projRoot, val) : val;
+        this._dirPath = FileUtil.resolve(val);
     }
 
     get dirPath() {

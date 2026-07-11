@@ -45,9 +45,9 @@ const RegexUtil = Object.freeze({
 
     getWordRegex: (words, flags = "gu") => {
         words = ArrayUtil.guaranteeArray(words, null, true);
-        const validWords = [...new Set(words.filter(Util.nonemptyString))];
+        const validWords = [...new Set(words.filter(word => typeof word === "string" && word.length > 0))];
 
-        if (Util.empty(validWords)) {
+        if (validWords.length < 1) {
             return null;
         }
 
@@ -62,7 +62,7 @@ const RegexUtil = Object.freeze({
     getMergedRegex: exps => {
         exps = Array.isArray(exps) ? exps.filter(TypeTester.isRegex) : [];
 
-        if (Util.empty(exps)) {
+        if (exps.length < 1) {
             return null;
         }
 
@@ -75,7 +75,7 @@ const RegexUtil = Object.freeze({
     },
 
     multipleReplace: (str, ...rules) => {
-        if (Util.empty(rules)) {
+        if (rules.length < 1) {
             return str;
         }
 

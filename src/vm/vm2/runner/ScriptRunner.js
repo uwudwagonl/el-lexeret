@@ -1,8 +1,10 @@
-import { NodeVM } from "vm2";
 import net from "node:net";
 import crypto from "node:crypto";
 import path from "node:path";
 
+import { NodeVM } from "vm2";
+
+import Util from "../../util/Util.js";
 import VMUtil from "../../util/VMUtil.js";
 
 const pendingFuncs = {};
@@ -10,7 +12,7 @@ const pendingFuncs = {};
 function funcsResolved() {
     return new Promise((resolve, reject) => {
         const timer = setInterval(() => {
-            if (Object.keys(pendingFuncs).length === 0) {
+            if (Util.empty(Object.keys(pendingFuncs))) {
                 clearInterval(timer);
                 resolve();
             }

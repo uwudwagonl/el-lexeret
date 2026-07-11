@@ -13,12 +13,12 @@ class PermRemoveCommand {
         arguments: [
             {
                 name: "groupName",
-                parser: "split",
+                kind: "positional",
                 index: 0
             },
             {
                 name: "userName",
-                parser: "split",
+                kind: "positional",
                 index: 1
             }
         ]

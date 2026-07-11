@@ -5,6 +5,9 @@ import BaseCommand from "./BaseCommand.js";
 import Util from "../../util/Util.js";
 import ArrayUtil from "../../util/ArrayUtil.js";
 
+import CommandParser from "../../parsers/command/CommandParser.js";
+import PositionalCommandReader from "../../parsers/command/reader/PositionalCommandReader.js";
+
 import TextCommandInfo from "./info/TextCommandInfo.js";
 import TextCommandContext from "./context/TextCommandContext.js";
 
@@ -14,6 +17,12 @@ class TextCommand extends BaseCommand {
 
     static {
         this._registerInfoGetters();
+    }
+
+    constructor(info) {
+        super(info);
+
+        this.parser = new CommandParser(this);
     }
 
     get hasHelp() {
@@ -142,7 +151,7 @@ class TextCommand extends BaseCommand {
         }
 
         if (!this.subcommand) {
-            const [subName, subArgs] = context.splitArgs(),
+            const [subName, subArgs] = PositionalCommandReader.split(context.argsText),
                 subCmd = this.getSubcmd(subName);
 
             if (subCmd !== null) {

@@ -204,4 +204,41 @@ describe("FakeHttp security checks", () => {
         expect(res.error).toBeDefined();
         expect(res.error.message).toContain("Connection allowed");
     });
+
+    test("sanitizes malformed request config fields instead of crashing", async () => {
+        lookupSpy.mockImplementation((hostname, options, callback) => {
+            if (hostname === "safe.com") {
+                process.nextTick(() => {
+                    if (options.all) {
+                        callback(null, [{ address: "9.9.9.9", family: 4 }]);
+                    } else {
+                        callback(null, "9.9.9.9", 4);
+                    }
+                });
+            } else {
+                process.nextTick(() => {
+                    callback(new Error("Not found"));
+                });
+            }
+        });
+
+        const res = await FakeHttp.request(undefined, {
+            url: "http://safe.com/a/",
+            method: true,
+            headers: true,
+            params: true,
+            data: {},
+            auth: true,
+            responseType: true,
+            responseEncoding: true,
+            proxy: true,
+            decompress: "yes",
+            maxRedirects: "lots",
+            validateStatus: true,
+            errorType: "value"
+        });
+
+        expect(res.error).toBeDefined();
+        expect(res.error.message).toContain("Connection allowed");
+    });
 });

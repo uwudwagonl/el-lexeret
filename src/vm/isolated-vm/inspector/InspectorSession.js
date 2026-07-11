@@ -2,14 +2,13 @@ import { URL, URLSearchParams } from "node:url";
 
 import WebSocket from "ws";
 
+import InspectorPacketParser from "./InspectorPacketParser.js";
+
 import { getLogger } from "../../../LevertClient.js";
 
 import Util from "../../../util/Util.js";
-import TypeTester from "../../../util/TypeTester.js";
-
-import InspectorPacketParser from "./InspectorPacketParser.js";
-
-import getCloseReason from "../../../util/misc/wsCloseReason.js";
+import ObjectUtil from "../../../util/ObjectUtil.js";
+import { getCloseReason } from "../../../util/misc/WebsocketCloseCodes.js";
 
 class InspectorSession {
     static inspectorUrl = "devtools://devtools/bundled/js_app.html";
@@ -22,7 +21,7 @@ class InspectorSession {
     static faviconUrl = "https://nodejs.org/static/images/favicons/favicon.ico";
 
     constructor(server, options) {
-        options = TypeTester.isObject(options) ? options : {};
+        options = ObjectUtil.guaranteeObject(options);
 
         this.server = server;
         this.options = options;

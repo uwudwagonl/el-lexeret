@@ -24,13 +24,13 @@ function logUsage(code) {
     getLogger().isDebugEnabled() && getLogger().debug(`Running script:${LoggerUtil.formatLog(code)}`);
 }
 
-function logFinished(timeKey, info) {
+function logFinished(info) {
     if (!info && !getLogger().isDebugEnabled()) {
-        Benchmark.stopTiming(timeKey, null);
+        Benchmark.stopTiming("vm_script", null);
         return;
     }
 
-    const elapsed = Benchmark.stopTiming(timeKey, false),
+    const elapsed = Benchmark.stopTiming("vm_script", false),
         level = info ? "info" : "debug";
 
     getLogger().log(level, `Script execution took ${Util.formatNumber(elapsed)} ms.`);
@@ -86,7 +86,7 @@ class TagVM extends VM {
             throw new VMError("Inspector is already connected.");
         }
 
-        const timeKey = Benchmark.startTiming(Symbol("vm_script"));
+        Benchmark.startTiming("vm_script");
 
         let out,
             outErr = null,
@@ -115,7 +115,7 @@ class TagVM extends VM {
             context?.dispose();
         }
 
-        logFinished(timeKey, inspectorInfo.enable);
+        logFinished(inspectorInfo.enable);
 
         let dataType;
         [out, dataType] = outErr ? this._handleScriptError(outErr) : this._handleScriptOuput(out);

@@ -15,18 +15,16 @@ class ConvertCommand {
         arguments: [
             {
                 name: "inputText",
-                parser: "split",
-                index: 0
+                kind: "positional"
             },
             {
                 name: "unitText",
-                parser: "split",
-                index: 1
+                kind: "rest"
             },
             {
                 name: "units",
                 from: "unitText",
-                parser: "words"
+                kind: "list"
             }
         ]
     };
@@ -67,7 +65,7 @@ class ConvertCommand {
                     break;
                 case "Invalid output units":
                     errOut = Util.single(err.ref)
-                        ? `Invalid **output** unit: \`${err.ref[0]}\`.`
+                        ? `Invalid **output** unit: \`${Util.first(err.ref)}\`.`
                         : "Invalid **output** units provided.";
                     break;
                 default:

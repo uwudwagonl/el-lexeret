@@ -11,7 +11,7 @@ class PingCommand {
     };
 
     async handler(ctx) {
-        const timeKey = Benchmark.startTiming(Symbol("ping"));
+        Benchmark.startTiming("ping");
 
         const sentMessage = await ctx.reply(`${getEmoji("info")} Pinging...`);
 
@@ -19,7 +19,7 @@ class PingCommand {
             originalTimestamp = ctx.msg.createdTimestamp;
 
         const totalLatency = Util.timeDelta(sentTimestamp, originalTimestamp),
-            serverLatency = Benchmark.stopTiming(timeKey, false);
+            serverLatency = Benchmark.stopTiming("ping", false);
 
         const totalWarn = totalLatency > 1000 ? ` ${getEmoji("warn")}` : "",
             serverWarn = serverLatency > 100 ? ` ${getEmoji("warn")}` : "";

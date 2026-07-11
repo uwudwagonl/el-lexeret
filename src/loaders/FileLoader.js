@@ -2,6 +2,7 @@ import path from "node:path";
 
 import Loader from "./Loader.js";
 
+import FileUtil from "../util/misc/FileUtil.js";
 import ObjectUtil from "../util/ObjectUtil.js";
 
 import { LoadStatus } from "./LoadStatus.js";
@@ -20,7 +21,7 @@ class FileLoader extends Loader {
     }
 
     set path(val) {
-        this._path = typeof val === "string" ? path.resolve(projRoot, val) : val;
+        this._path = FileUtil.resolve(val);
         this._filename = typeof val === "string" ? path.parse(val).name : null;
     }
 

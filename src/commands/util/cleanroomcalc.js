@@ -39,16 +39,18 @@ class CleanroomCalcCommand {
         arguments: [
             {
                 name: "dimensions",
-                parser: parseDimensions
+                from: "argsText"
             }
         ]
     };
 
     handler(ctx) {
+        const rawDims = ctx.arg("dimensions");
+
         let dims;
 
         try {
-            dims = ctx.arg("dimensions");
+            dims = parseDimensions(rawDims);
         } catch (err) {
             if (err.name !== "ParserError") {
                 throw err;

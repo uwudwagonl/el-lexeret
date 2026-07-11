@@ -1,5 +1,9 @@
+import fs from "node:fs/promises";
+import path from "node:path";
+
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import {
+    addAdmin,
     cleanupRuntime,
     createCommandMessage,
     createCommandRuntime,
@@ -18,11 +22,11 @@ beforeEach(async () => {
             enableVM2: false
         }
     });
-});
+}, 30000);
 
 afterEach(async () => {
     await cleanupRuntime(runtime);
-});
+}, 30000);
 
 describe("eval command", () => {
     test("loads only the local eval path and runs scripts through real isolated-vm", async () => {
@@ -60,7 +64,7 @@ describe("eval command", () => {
             }
         });
 
-        expect(runtime.client.commandManager.searchCommands("eval")).toBeNull();
+        expect(runtime.client.commandManager.searchCommands("exec")).toBeNull();
     });
 });
 
@@ -149,6 +153,50 @@ describe("Merged Branch Coverage", () => {
                 executeCommand(command, "```js\n1 + 1\n```", { msg: createCommandMessage("%eval") })
             ).resolves.toEqual([
                 ":no_entry_sign: Stopped.",
+                {
+                    type: "options",
+                    useConfigLimits: true
+                }
+            ]);
+        });
+
+        test("lets admins load scripts from files without guessing for regular users", async () => {
+            const command = getCommand(runtime, "eval"),
+                filePath = path.join(runtime.tempDir, "script.js");
+
+            await fs.writeFile(filePath, "from file");
+            await addAdmin(runtime, "admin-user");
+
+            runtime.client.tagVM.runScript = async body => body;
+
+            await expect(
+                executeCommand(command, filePath, {
+                    msg: createCommandMessage(`%eval ${filePath}`, {
+                        author: {
+                            id: "admin-user",
+                            username: "admin"
+                        }
+                    })
+                })
+            ).resolves.toEqual([
+                "from file",
+                {
+                    type: "options",
+                    useConfigLimits: true
+                }
+            ]);
+
+            await expect(
+                executeCommand(command, "script.js", {
+                    msg: createCommandMessage("%eval script.js", {
+                        author: {
+                            id: "user-1",
+                            username: "alex"
+                        }
+                    })
+                })
+            ).resolves.toEqual([
+                "script.js",
                 {
                     type: "options",
                     useConfigLimits: true

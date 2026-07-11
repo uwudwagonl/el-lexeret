@@ -13,13 +13,13 @@ class TagAddCommand {
         arguments: [
             {
                 name: "tagName",
-                parser: "split",
+                kind: "positional",
                 index: 0,
                 lowercase: true
             },
             {
                 name: "tagArgs",
-                parser: "split",
+                kind: "positional",
                 index: 1
             }
         ]
@@ -46,8 +46,10 @@ class TagAddCommand {
             }
         }
 
-        let parsed = await this.parentCmd.parseBase(t_args, ctx.msg),
-            { body, meta } = parsed;
+        let parsed = await this.parentCmd.parseBase(t_args, ctx.msg, {
+                allowFilePath: getClient().permManager.allowed(ctx.perm, "admin")
+            }),
+            { body, meta, attachment } = parsed;
 
         if (parsed.err !== null) {
             return parsed.err;
@@ -82,7 +84,13 @@ class TagAddCommand {
             }
         }
 
-        return `${getEmoji("ok")} Created tag **${escapeMarkdown(t_name)}**.`;
+        let out = `${getEmoji("ok")} Created tag **${escapeMarkdown(t_name)}**.`;
+
+        if (attachment) {
+            out += `\n${this.parentCmd.attachmentWarning}`;
+        }
+
+        return out;
     }
 }
 

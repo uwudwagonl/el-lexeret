@@ -12,13 +12,13 @@ class TagRenameCommand {
         arguments: [
             {
                 name: "tagName",
-                parser: "split",
+                kind: "positional",
                 index: 0,
                 lowercase: true
             },
             {
                 name: "newName",
-                parser: "split",
+                kind: "positional",
                 index: 1,
                 lowercase: true
             }

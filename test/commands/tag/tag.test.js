@@ -125,6 +125,7 @@ describe("Merged Branch Coverage", () => {
             expect(await command.parseBase("", null)).toMatchObject({
                 body: null,
                 meta: null,
+                attachment: false,
                 err: ":warning: Tag body is empty."
             });
 
@@ -134,6 +135,7 @@ describe("Merged Branch Coverage", () => {
                     type: "ivm",
                     language: "js"
                 },
+                attachment: false,
                 err: null
             });
 
@@ -143,6 +145,7 @@ describe("Merged Branch Coverage", () => {
                     type: "ivm",
                     language: "js"
                 },
+                attachment: false,
                 err: null
             });
 
@@ -152,6 +155,7 @@ describe("Merged Branch Coverage", () => {
                     type: "ivm",
                     language: "ts"
                 },
+                attachment: false,
                 err: null
             });
 
@@ -161,12 +165,23 @@ describe("Merged Branch Coverage", () => {
                     type: "vm2",
                     language: "ts"
                 },
+                attachment: false,
                 err: null
             });
 
             expect(await command.parseBase("ts ```ts\nconst x: number = 1;\n```", null)).toMatchObject({
                 body: "ts ```ts\nconst x: number = 1;\n```",
                 meta: {},
+                attachment: false,
+                err: null
+            });
+
+            expect(
+                await command.parseBase("https://cdn.discordapp.com/attachments/1/2/file.png", null)
+            ).toMatchObject({
+                body: "https://cdn.discordapp.com/attachments/1/2/file.png",
+                meta: {},
+                attachment: true,
                 err: null
             });
 
@@ -178,6 +193,7 @@ describe("Merged Branch Coverage", () => {
                     attachments: new Map([["file", {}]])
                 })
             ).toMatchObject({
+                attachment: false,
                 err: ":warning: Attachment rejected."
             });
 
@@ -191,9 +207,26 @@ describe("Merged Branch Coverage", () => {
                     attachments: new Map([["file", {}]])
                 })
             ).toMatchObject({
+                attachment: false,
                 err: {
                     content: ":no_entry_sign: Downloading attachment failed:"
                 }
+            });
+
+            vi.spyOn(runtime.client.tagManager, "downloadBody").mockResolvedValueOnce({
+                body: "downloaded body",
+                isScript: false
+            });
+
+            expect(
+                await command.parseBase("ignored", {
+                    attachments: new Map([["file", {}]])
+                })
+            ).toMatchObject({
+                body: "downloaded body",
+                meta: {},
+                attachment: true,
+                err: null
             });
         });
 

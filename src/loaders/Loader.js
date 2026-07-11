@@ -1,7 +1,6 @@
+import Util from "../util/Util.js";
 import TypeTester from "../util/TypeTester.js";
 import ObjectUtil from "../util/ObjectUtil.js";
-
-import Util from "../util/Util.js";
 
 import { LoadStatus } from "./LoadStatus.js";
 

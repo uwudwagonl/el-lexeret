@@ -2,14 +2,13 @@ import { EmbedBuilder } from "discord.js";
 
 import { getEmoji } from "../../LevertClient.js";
 
-import Stoik from "../../parsers/stoik/Stoik.js";
-
 import Util from "../../util/Util.js";
 import TypeTester from "../../util/TypeTester.js";
 import ArrayUtil from "../../util/ArrayUtil.js";
-import ParserUtil from "../../util/commands/ParserUtil.js";
-
 import { drawTable } from "../../util/misc/Table.js";
+
+import Stoik from "../../parsers/stoik/Stoik.js";
+import PositionalCommandReader from "../../parsers/command/reader/PositionalCommandReader.js";
 
 function evaluate(ctx, side) {
     try {
@@ -32,7 +31,7 @@ function formatError(err) {
     }
 
     const { idx, type, token, after, for: _for } = err.ref,
-        [word] = ParserUtil.splitArgs(err.message);
+        [word] = PositionalCommandReader.split(err.message);
 
     let out = `${word} **${type}**`;
 
@@ -77,18 +76,14 @@ class StoikCommand {
         arguments: [
             {
                 name: "left",
-                parser: "split",
-                options: {
-                    sep: ["=", "->"]
-                },
+                kind: "positional",
+                separator: ["=", "->"],
                 index: 0
             },
             {
                 name: "right",
-                parser: "split",
-                options: {
-                    sep: ["=", "->"]
-                },
+                kind: "positional",
+                separator: ["=", "->"],
                 index: 1
             }
         ]

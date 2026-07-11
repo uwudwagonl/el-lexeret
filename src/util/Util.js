@@ -1,5 +1,3 @@
-import fs from "node:fs/promises";
-
 import { LengthTypes } from "./LengthTypes.js";
 import { CountTypes } from "./CountTypes.js";
 
@@ -101,18 +99,6 @@ let Util = {
         }
 
         return [first, second];
-    },
-
-    directoryExists: async path => {
-        try {
-            return (await fs.stat(path)).isDirectory();
-        } catch (err) {
-            return err.code === "ENOENT"
-                ? false
-                : (() => {
-                      throw err;
-                  })();
-        }
     },
 
     delay: ms => {
@@ -252,19 +238,34 @@ let Util = {
 
     _camelToWordsRegex: /([a-z])([A-Z])/g,
     camelCaseToWords: str => {
+        str = String(str);
         Util._camelToWordsRegex.lastIndex = 0;
 
         const words = str.replace(Util._camelToWordsRegex, "$1 $2");
         return words.toLowerCase();
     },
 
+    camelCaseToKebab: str => {
+        str = String(str);
+        Util._camelToWordsRegex.lastIndex = 0;
+
+        const kebab = str.replace(Util._camelToWordsRegex, "$1-$2");
+        return kebab.toLowerCase();
+    },
+
     _wordsToCamelRegex: /(?:^\w|[A-Z]|\b\w|\s+)/g,
     wordsToCamelCase: str => {
-        str = str.toLowerCase();
+        str = String(str).toLowerCase();
         Util._wordsToCamelRegex.lastIndex = 0;
 
         const camel = str.replace(Util._wordsToCamelRegex, (match, i) => match[`to${i ? "Upper" : "Lower"}Case`]());
         return Util.stripSpaces(camel);
+    },
+
+    _camelSplitRegex: /(?<!^)(?=[A-Z])/,
+    splitCamelCase: str => {
+        str = String(str);
+        return str.split(Util._camelSplitRegex);
     },
 
     hasDuplicates: (str, sep = "") => {
@@ -272,6 +273,7 @@ let Util = {
             return false;
         }
 
+        // eslint-disable-next-line no-restricted-syntax
         const split = sep === "" ? str : str.split(sep);
         return new Set(split).size !== split.length;
     },
@@ -281,6 +283,7 @@ let Util = {
             return str;
         }
 
+        // eslint-disable-next-line no-restricted-syntax
         const split = sep === "" ? str : str.split(sep);
         return [...new Set(split)].join(sep);
     },
@@ -296,7 +299,7 @@ let Util = {
     },
 
     maskRanges: (str, ranges, mask = " ") => {
-        if (typeof str !== "string" || Util.empty(ranges) || !Util.nonemptyString(mask)) {
+        if (!Util.nonemptyString(str) || Util.empty(ranges) || !Util.nonemptyString(mask)) {
             return str;
         }
 
@@ -582,6 +585,10 @@ let Util = {
     },
 
     first: (val, start = 0, n = 1) => {
+        if (val == null) {
+            return n > 1 ? [] : undefined;
+        }
+
         return n > 1 ? val.slice(start, start + n) : val[start];
     },
 

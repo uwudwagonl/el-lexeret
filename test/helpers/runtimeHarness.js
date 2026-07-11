@@ -13,6 +13,7 @@ function buildDefaultConfig(tempDir, overrides = {}) {
         dbPath: tempDir,
         commandsPath: path.join(repoRoot, "src/commands"),
         cliCommandsPath: path.join(repoRoot, "src/commands/cli"),
+        websocketCommandsPath: path.join(repoRoot, "src/commands/websocket"),
         eventsPath: path.join(repoRoot, "src/events"),
         cmdPrefix: "%",
         wrapEvents: false,
@@ -24,6 +25,8 @@ function buildDefaultConfig(tempDir, overrides = {}) {
         enablePreviews: true,
         enableSed: true,
         enableCliCommands: false,
+        enableWebsocket: false,
+        websocketPort: 0,
         enableGlobalHandler: false,
         logToDiscord: false,
         logFile: path.join(tempDir, "test.log"),
@@ -142,6 +145,11 @@ async function loadRuntimeManagers(client, Managers, config) {
             commandManager: [],
             reminderManager: config.enableReminders,
             cliCommandManager: config.enableCliCommands,
+            websocketCommandManager: config.enableWebsocket,
+            gatewayManager: {
+                enabled: config.enableWebsocket,
+                args: [true, config.websocketPort]
+            },
             inputManager: {
                 enabled: config.enableCliCommands,
                 args: [
@@ -187,7 +195,8 @@ async function loadRuntimeHandlers(client, Handlers, config, reactions) {
             previewHandler: [config.enablePreviews],
             reactionHandler: reactions.enableReacts,
             sedHandler: config.enableSed,
-            cliCommandHandler: config.enableCliCommands
+            cliCommandHandler: config.enableCliCommands,
+            websocketCommandHandler: config.enableWebsocket
         },
         {
             showLogMessages: false,
@@ -214,10 +223,9 @@ async function createRuntime(options = {}) {
         reactions = buildDefaultReactions(options.reactions),
         auth = buildDefaultAuth(options.auth);
 
-    const client = new LevertClient({
+    const client = new LevertClient(auth, {
         config,
-        reactions,
-        auth
+        reactions
     });
 
     silenceLogger(client.logger);

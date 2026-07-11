@@ -1,16 +1,17 @@
+import crypto from "node:crypto";
 import http from "node:http";
 import { URL } from "node:url";
-import crypto from "node:crypto";
 
 import { WebSocketServer } from "ws";
+
+import InspectorSession from "./InspectorSession.js";
+
+import { InspectorModes } from "./InspectorModes.js";
 
 import { getLogger } from "../../../LevertClient.js";
 
 import Util from "../../../util/Util.js";
-import TypeTester from "../../../util/TypeTester.js";
-
-import InspectorSession from "./InspectorSession.js";
-import { InspectorModes } from "./InspectorModes.js";
+import ObjectUtil from "../../../util/ObjectUtil.js";
 
 import VMError from "../../../errors/VMError.js";
 
@@ -19,7 +20,7 @@ class InspectorServer {
         this.enabled = enabled;
         this.port = port;
 
-        options = TypeTester.isObject(options) ? options : {};
+        options = ObjectUtil.guaranteeObject(options);
         this.options = options;
 
         this.mode = options.mode ?? InspectorModes.console;
@@ -92,7 +93,7 @@ class InspectorServer {
     }
 
     createUserSession(options) {
-        options = TypeTester.isObject(options) ? options : {};
+        options = ObjectUtil.guaranteeObject(options);
 
         if (this.mode !== InspectorModes.user) {
             throw new VMError("User inspector isn't enabled.");
@@ -143,7 +144,7 @@ class InspectorServer {
     }
 
     _createSession(options) {
-        options = TypeTester.isObject(options) ? options : {};
+        options = ObjectUtil.guaranteeObject(options);
 
         const session = new InspectorSession(this, {
             actionTimeout: 0,

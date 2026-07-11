@@ -48,13 +48,13 @@ class TagLeaderboardCommand {
         arguments: [
             {
                 name: "leaderboardType",
-                parser: "split",
+                kind: "positional",
                 index: 0,
                 lowercase: true
             },
             {
                 name: "limitText",
-                parser: "split",
+                kind: "positional",
                 index: 1
             }
         ]

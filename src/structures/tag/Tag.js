@@ -1,8 +1,9 @@
 import { escapeMarkdown, bold, codeBlock } from "discord.js";
 
 import TagBitField from "./TagBitField.js";
-import { TagTypes } from "./TagTypes.js";
 import { resolveVMLanguage } from "../vm/VMLanguages.js";
+
+import { TagTypes } from "./TagTypes.js";
 
 import { getClient } from "../../LevertClient.js";
 
@@ -12,6 +13,8 @@ import ObjectUtil from "../../util/ObjectUtil.js";
 import TypeTester from "../../util/TypeTester.js";
 import DiscordUtil from "../../util/DiscordUtil.js";
 import FunctionUtil from "../../util/misc/FunctionUtil.js";
+
+import { ScriptCommandType } from "../../parsers/command/type/index.js";
 
 import TagError from "../../errors/TagError.js";
 
@@ -30,6 +33,37 @@ class Tag {
 
     static dataProps = ["aliasName", "name", "body", "owner", "args", "registered", "lastEdited", "type"];
 
+    static emulatableFields = Object.freeze([
+        Object.freeze({
+            name: "name",
+            type: "string"
+        }),
+        Object.freeze({
+            name: "aliasName",
+            type: "string"
+        }),
+        Object.freeze({
+            name: "body",
+            type: "string"
+        }),
+        Object.freeze({
+            name: "owner",
+            type: "string"
+        }),
+        Object.freeze({
+            name: "args",
+            type: "string"
+        }),
+        Object.freeze({
+            name: "type",
+            type: "string"
+        }),
+        Object.freeze({
+            name: "language",
+            type: "string"
+        })
+    ]);
+
     static from(data, nullable = false, ...args) {
         if (nullable && data === null) {
             return null;
@@ -43,8 +77,8 @@ class Tag {
 
         let include = true;
 
-        if (typeof names[0] === "boolean") {
-            include = names[0];
+        if (typeof Util.first(names) === "boolean") {
+            include = Util.first(names);
             names.shift();
         }
 
@@ -66,6 +100,26 @@ class Tag {
         };
     }
 
+    static getParsedMeta(parsed, type) {
+        if (!parsed.isScript) {
+            return {};
+        }
+
+        return {
+            type: type ?? TagTypes.defaults.scriptType,
+            language: resolveVMLanguage(parsed.language, TagTypes.defaults.language)
+        };
+    }
+
+    static parseTagBody(body, type) {
+        const parsed = ScriptCommandType.parse(body);
+
+        return {
+            body: parsed.body,
+            meta: this.getParsedMeta(parsed, type)
+        };
+    }
+
     constructor(data) {
         let aliasName = data?.aliasName,
             type = data?.type,
@@ -77,8 +131,8 @@ class Tag {
 
             if (
                 !Util.nonemptyString(aliasName) &&
-                hops.length === 1 &&
-                hops[0] !== data.name &&
+                Util.single(hops) &&
+                Util.first(hops) !== data.name &&
                 Util.empty(data.body)
             ) {
                 aliasName = hopString;

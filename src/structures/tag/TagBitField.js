@@ -5,6 +5,7 @@ import BitField from "../../util/misc/BitField.js";
 import { TagTypes } from "./TagTypes.js";
 
 import TypeTester from "../../util/TypeTester.js";
+import ObjectUtil from "../../util/ObjectUtil.js";
 
 import TagError from "../../errors/TagError.js";
 
@@ -40,7 +41,7 @@ class TagBitField extends BitField {
 
     constructor(data = TagTypes.defaults.flags, options) {
         data ??= TagTypes.defaults.flags;
-        options = TypeTester.isObject(options) ? options : {};
+        options = ObjectUtil.guaranteeObject(options);
 
         const include = options.include ?? true;
         options.grow ??= TagTypes.flags.entries.length;

@@ -135,7 +135,7 @@ describe("PermissionManager", () => {
     test("covers disabled and error paths without mocking the database layer", async () => {
         const manager = await createManager();
 
-        expect(manager.checkName(123, false)).toEqual([null, "Invalid group name"]);
+        expect(manager.checkName(123, false)).toEqual(["123", null]);
         expect(manager.checkName("owner", false, false)[1]).toContain("owner");
         expect(manager.checkLevel(0, false)[1]).toContain("higher");
         expect(manager.checkLevel(manager.getLevels().owner, false, false)[1]).toContain("higher");

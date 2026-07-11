@@ -15,25 +15,27 @@ class ReminderAddCommand {
         arguments: [
             {
                 name: "date",
-                parser: "match",
-                regex: messageRegex,
-                index: 1
+                reader: {
+                    kind: "match",
+                    pattern: messageRegex,
+                    index: 1
+                }
             },
             {
                 name: "quote",
-                parser: "match",
-                regex: messageRegex,
-                index: 2
+                reader: {
+                    kind: "match",
+                    pattern: messageRegex,
+                    index: 2
+                }
             },
             {
                 name: "message",
-                parser: "match",
-                regex: messageRegex,
-                index: 3,
-                transform: (value, _context, parsed) =>
-                    typeof value === "string" && typeof parsed.quote === "string"
-                        ? value.replaceAll("\\" + parsed.quote, parsed.quote)
-                        : value
+                reader: {
+                    kind: "match",
+                    pattern: messageRegex,
+                    index: 3
+                }
             }
         ]
     };
@@ -54,7 +56,12 @@ class ReminderAddCommand {
             }
         }
 
-        let message = ctx.arg("message");
+        let message = ctx.arg("message"),
+            quote = ctx.arg("quote");
+
+        if (typeof message === "string" && typeof quote === "string") {
+            message = message.replaceAll("\\" + quote, quote);
+        }
 
         {
             let err;

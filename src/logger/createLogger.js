@@ -1,41 +1,24 @@
 import winston from "winston";
-import path from "node:path";
 
 import getFormat from "./getFormat.js";
 import getGlobalFormat from "./GlobalFormat.js";
 
+import DailyRotateFileTransport from "./DailyRotateFileTransport.js";
+
 import Util from "../util/Util.js";
 
 import LoggerError from "../errors/LoggerError.js";
-
-function getFilePath(logFile, level) {
-    const parsed = path.parse(logFile),
-        date = new Date().toISOString().slice(0, 10);
-
-    let filename = `${date}-${parsed.name}`;
-
-    if (level != null) {
-        filename += `-${level}`;
-    }
-
-    filename += parsed.ext;
-    return path.join(parsed.dir, filename);
-}
 
 function getFileTransport(config, logFile, level) {
     if (config == null) {
         throw new LoggerError("A file format must be provided if outputting to a file");
     }
 
-    const format = getFormat(config),
-        filePath = getFilePath(logFile, level);
-
-    const file = new winston.transports.File({
-        filename: filePath,
-        format
+    return new DailyRotateFileTransport({
+        logFile,
+        level,
+        format: getFormat(config)
     });
-
-    return file;
 }
 
 function getConsoleTransport(config) {
@@ -43,12 +26,9 @@ function getConsoleTransport(config) {
         throw new LoggerError("A console format must be provided if outputting to the console");
     }
 
-    const format = getFormat(config),
-        console = new winston.transports.Console({
-            format
-        });
-
-    return console;
+    return new winston.transports.Console({
+        format: getFormat(config)
+    });
 }
 
 function getTransports(config) {

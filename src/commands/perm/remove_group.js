@@ -14,7 +14,7 @@ class PermRemoveGroupCommand {
         arguments: [
             {
                 name: "groupName",
-                parser: "split",
+                kind: "positional",
                 index: 0
             }
         ]

@@ -12,8 +12,8 @@ import Benchmark from "../../util/misc/Benchmark.js";
 
 import ReminderError from "../../errors/ReminderError.js";
 
-function logTime(timeKey) {
-    const elapsed = Benchmark.stopTiming(timeKey, false);
+function logTime() {
+    const elapsed = Benchmark.stopTiming("send_reminders", false);
     getLogger().info(`Sending reminders took ${Util.formatNumber(elapsed)} ms.`);
 }
 
@@ -213,7 +213,7 @@ class ReminderManager extends DBManager {
     }
 
     _sendReminders = async () => {
-        const timeKey = Benchmark.startTiming(Symbol("send_reminders"));
+        Benchmark.startTiming("send_reminders");
 
         if (ReminderManager.areWeChecking && getLogger().isDebugEnabled()) {
             const interval = Util.round(this.sendInterval * Util.durationSeconds.milli, 1);
@@ -224,14 +224,14 @@ class ReminderManager extends DBManager {
 
         if (Util.empty(reminders)) {
             ReminderManager.areWeChecking && getLogger().debug("No reminders to send.");
-            Benchmark.stopTiming(timeKey, null);
+            Benchmark.stopTiming("send_reminders", null);
             return;
         }
 
         getLogger().info(`Sending ${reminders.length} reminder(s)...`);
         await Promise.all(reminders.map(reminder => this.sendReminder(reminder)));
 
-        logTime(timeKey);
+        logTime();
     };
 
     _stopSendLoop() {

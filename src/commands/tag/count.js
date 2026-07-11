@@ -10,7 +10,7 @@ class TagCountCommand {
         arguments: [
             {
                 name: "subject",
-                parser: "split",
+                kind: "positional",
                 index: 0,
                 lowercase: true
             }
